@@ -35,7 +35,10 @@ set_exception_handler(static function (Throwable $e): void {
     if (defined('CHEMI_DEBUG') && CHEMI_DEBUG) {
         $payload['detail'] = $e->getMessage();
         $payload['where'] = $e->getFile() . ':' . $e->getLine();
-    } else {
+    }
+    // Only genuine faults reach the log. 4xx responses are expected outcomes
+    // (bad input, not signed in) and would otherwise drown out real problems.
+    if ($status >= 500) {
         error_log('[chemi-api] ' . $e->getMessage() . ' @ ' . $e->getFile() . ':' . $e->getLine());
     }
     echo json_encode($payload);

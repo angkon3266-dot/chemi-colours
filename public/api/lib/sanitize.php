@@ -72,6 +72,13 @@ function clean_node(DOMNode $node): void
 
         $tag = strtolower($child->nodeName);
 
+        // These carry executable or styling payloads: drop the element and
+        // everything inside it, rather than unwrapping to its text.
+        if (in_array($tag, ['script', 'style', 'iframe', 'object', 'embed', 'noscript', 'template'], true)) {
+            $child->parentNode?->removeChild($child);
+            continue;
+        }
+
         if (!array_key_exists($tag, ALLOWED_TAGS)) {
             // Unknown tag: keep its text content, drop the tag itself.
             while ($child->firstChild) {
