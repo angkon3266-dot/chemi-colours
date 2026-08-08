@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { MapPin } from 'lucide-react'
 import { api } from '../lib/api'
 import { useSite } from '../lib/site'
-import { resolveCta } from '../lib/contact'
+import { resolveCta, mapEmbedUrl, mapLinkUrl } from '../lib/contact'
 import type { CtaAction } from '../lib/contact'
 import type { Block, Category, Product } from '../lib/types'
 import ContactForm from './ContactForm'
@@ -392,7 +393,7 @@ function CategoryGrid({ data }: { data: Record<string, any> }) {
       name: c.name,
       image: c.image || '',
       sub: c.childCount
-        ? `${c.childCount} sub-categories`
+        ? `${c.childCount} sub-categor${c.childCount === 1 ? "y" : "ies"}`
         : `${c.productCount ?? 0} products`,
       to: `/category/${c.slug}`,
     }))
@@ -671,6 +672,50 @@ function Logos({ data }: { data: Record<string, any> }) {
   )
 }
 
+/* ------------------------------------------------------------------- map -- */
+function MapBlock({ data }: { data: Record<string, any> }) {
+  const embed = mapEmbedUrl(data.mapUrl)
+  const link = mapLinkUrl(data.mapUrl)
+  if (!embed) return null
+
+  return (
+    <section className={SECTION}>
+      <div className={INNER}>
+        {(data.title || data.address) && (
+          <div className="mb-6">
+            {data.title && (
+              <h2 className="text-2xl sm:text-3xl font-medium text-black">{data.title}</h2>
+            )}
+            {data.address && (
+              <p className="mt-2 text-gray-500 whitespace-pre-line">{data.address}</p>
+            )}
+          </div>
+        )}
+        <div className="rounded-2xl overflow-hidden border border-gray-200">
+          <iframe
+            src={embed}
+            title={data.title || 'Location map'}
+            loading="lazy"
+            referrerPolicy="no-referrer-when-downgrade"
+            allowFullScreen
+            className="w-full h-[300px] sm:h-[420px] border-0"
+          />
+        </div>
+        {link && (
+          <a
+            href={link}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mt-4 inline-flex items-center gap-2 text-sm font-semibold text-gray-700 hover:text-black transition-colors"
+          >
+            <MapPin size={15} /> Get directions
+          </a>
+        )}
+      </div>
+    </section>
+  )
+}
+
 /* -------------------------------------------------------------- renderer -- */
 export function BlockRenderer({ block }: { block: Block }) {
   const d = block.data || {}
@@ -705,6 +750,8 @@ export function BlockRenderer({ block }: { block: Block }) {
       return <Parallax data={d} />
     case 'director':
       return <Director data={d} />
+    case 'map':
+      return <MapBlock data={d} />
     default:
       return null
   }

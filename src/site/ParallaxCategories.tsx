@@ -13,9 +13,12 @@ function ParallaxRow({ category, index }: { category: Category; index: number })
   const ref = useRef<HTMLDivElement>(null)
   const reverse = index % 2 === 1
 
+  // Reveal as the row enters the viewport rather than when its centre reaches
+  // the top — the original offset meant scrolling most of a screen on mobile
+  // before anything appeared.
   const { scrollYProgress } = useScroll({
     target: ref,
-    offset: ['start end', 'center start'],
+    offset: ['start end', 'center center'],
   })
 
   const opacity = useTransform(scrollYProgress, [0, 0.7], [0, 1])
@@ -29,45 +32,49 @@ function ParallaxRow({ category, index }: { category: Category; index: number })
   return (
     <div
       ref={ref}
-      className={`flex flex-col ${
-        reverse ? 'md:flex-row-reverse' : 'md:flex-row'
-      } items-center justify-center gap-8 md:gap-20 lg:gap-32 py-14 md:py-24 md:min-h-[80vh]`}
+      className={`flex ${
+        reverse ? 'flex-row-reverse' : 'flex-row'
+      } items-center justify-center gap-5 sm:gap-10 md:gap-20 lg:gap-32 py-8 sm:py-14 md:py-24 md:min-h-[80vh]`}
     >
-      <motion.div style={{ y }} className="w-full md:max-w-sm">
+      <motion.div style={{ y }} className="flex-1 min-w-0 md:max-w-sm">
         <p className="text-xs font-semibold uppercase tracking-[0.14em] text-gray-400">
           {String(index + 1).padStart(2, '0')}
         </p>
-        <h3 className="mt-3 text-3xl sm:text-4xl lg:text-5xl font-medium text-black leading-tight">
+        <h3 className="mt-2 sm:mt-3 text-2xl sm:text-4xl lg:text-5xl font-medium text-black leading-tight break-words">
           {category.name}
         </h3>
         {category.summary && (
-          <p className="mt-5 text-gray-500 leading-relaxed">{category.summary}</p>
+          // break-words: a long unbroken string would otherwise run past the
+          // column and slide under the image.
+          <p className="mt-4 sm:mt-5 text-sm sm:text-base text-gray-500 leading-relaxed break-words line-clamp-4">
+            {category.summary}
+          </p>
         )}
-        <p className="mt-4 text-sm text-gray-400">
+        <p className="mt-3 sm:mt-4 text-xs sm:text-sm text-gray-400">
           {category.childCount
             ? `${category.childCount} sub-categor${category.childCount === 1 ? 'y' : 'ies'}`
             : `${category.productCount} product${category.productCount === 1 ? '' : 's'}`}
         </p>
         <Link
           to={`/category/${category.slug}`}
-          className="mt-6 inline-flex items-center gap-2 bg-black text-white text-sm font-semibold px-5 py-3 rounded-2xl hover:bg-gray-800 transition-colors"
+          className="mt-4 sm:mt-6 inline-flex items-center gap-2 bg-black text-white text-xs sm:text-sm font-semibold px-4 sm:px-5 py-2.5 sm:py-3 rounded-2xl hover:bg-gray-800 transition-colors"
         >
           Explore <ArrowRight size={15} />
         </Link>
       </motion.div>
 
-      <motion.div style={{ opacity, clipPath }} className="relative w-full md:w-auto">
+      <motion.div style={{ opacity, clipPath }} className="relative shrink-0">
         <Link to={`/category/${category.slug}`} className="block">
           {category.image ? (
             <img
               src={category.image}
               alt={category.name}
               loading="lazy"
-              className="w-full md:w-80 lg:w-96 aspect-square object-cover rounded-2xl"
+              className="w-32 sm:w-56 md:w-80 lg:w-96 aspect-square object-cover rounded-2xl"
             />
           ) : (
-            <div className="w-full md:w-80 lg:w-96 aspect-square rounded-2xl bg-gray-100 flex items-center justify-center">
-              <span className="text-gray-300 text-sm">No image yet</span>
+            <div className="w-32 sm:w-56 md:w-80 lg:w-96 aspect-square rounded-2xl bg-gray-100 flex items-center justify-center">
+              <span className="text-gray-300 text-xs sm:text-sm text-center px-2">No image yet</span>
             </div>
           )}
         </Link>

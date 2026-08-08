@@ -11,7 +11,7 @@ const SETTING_KEYS = [
     'cta_label', 'cta_href',
     'footer_tagline', 'footer_note', 'footer_columns',
     'footer_address', 'footer_extra',
-    'nav_items',
+    'nav_items', 'nav_bg_color', 'nav_text_color', 'footer_map_url',
     'social_twitter', 'social_facebook', 'social_instagram', 'social_linkedin',
     'form_services', 'form_heading', 'form_intro',
     'form_success_title', 'form_success_text',
@@ -22,7 +22,7 @@ const JSON_SETTING_KEYS = ['form_services', 'footer_columns', 'footer_extra', 'n
 const BLOCK_TYPES = [
     'hero', 'pagehero', 'richtext', 'features', 'stats', 'timeline',
     'product_grid', 'gallery', 'cta', 'contact', 'faq', 'logos',
-    'category_grid', 'parallax', 'director',
+    'category_grid', 'parallax', 'director', 'map',
 ];
 
 function handle_admin(string $method, array $seg): void
@@ -210,6 +210,10 @@ function sanitize_block_data(mixed $data): mixed
     foreach ($data as $k => $v) {
         if ($k === 'html' && is_string($v)) {
             $out[$k] = sanitize_html($v);
+        } elseif ($k === 'mapUrl' && is_string($v)) {
+            // Google hands out a whole <iframe>; keep the src rather than
+            // letting strip_tags() discard the URL along with the tag.
+            $out[$k] = extract_map_url($v);
         } else {
             $out[$k] = sanitize_block_data($v);
         }
@@ -337,9 +341,22 @@ function admin_categories(string $method, array $seg): void
     $id = isset($seg[0]) && ctype_digit($seg[0]) ? (int) $seg[0] : 0;
 
     if ($method === 'GET') {
-        json_out(db()->query(
+        $rows = db()->query(
             'SELECT * FROM categories ORDER BY COALESCE(parent_id, id), parent_id IS NOT NULL, sort_order ASC, name ASC'
-        )->fetchAll());
+        )->fetchAll();
+
+        // PDO hands back every column as a string; the client matches children
+        // to parents by id, so these must be real numbers or nothing lines up.
+        json_out(array_map(static fn($c) => [
+            'id'          => (int) $c['id'],
+            'slug'        => $c['slug'],
+            'name'        => $c['name'],
+            'summary'     => $c['summary'] ?? '',
+            'description' => $c['description'] ?? '',
+            'parent_id'   => $c['parent_id'] !== null ? (int) $c['parent_id'] : null,
+            'image_id'    => $c['image_id'] !== null ? (int) $c['image_id'] : null,
+            'sort_order'  => (int) $c['sort_order'],
+        ], $rows));
     }
 
     if ($method === 'POST') {
@@ -602,6 +619,8 @@ function admin_settings(string $method): void
             }
             if (in_array($key, JSON_SETTING_KEYS, true)) {
                 $stmt->execute([$key, json_col(is_array($value) ? $value : [])]);
+            } elseif ($key === 'footer_map_url') {
+                $stmt->execute([$key, extract_map_url((string) $value)]);
             } else {
                 $stmt->execute([$key, plain((string) $value, 2000)]);
             }

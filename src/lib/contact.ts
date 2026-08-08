@@ -25,6 +25,36 @@ export function emailHref(settings: Settings, subject?: string): string {
   return `mailto:${to}${subject ? `?subject=${encodeURIComponent(subject)}` : ''}`
 }
 
+/**
+ * Turns whatever a user pastes from Google Maps into an embeddable URL.
+ * Accepts a full <iframe> snippet, an existing /embed URL, a share link or a
+ * plain address, so the admin never has to know which one is "right".
+ */
+export function mapEmbedUrl(raw?: string): string {
+  const v = (raw || '').trim()
+  if (!v) return ''
+
+  // Pasted iframe markup: pull the src out.
+  const iframeSrc = v.match(/<iframe[^>]*\ssrc=["']([^"']+)["']/i)
+  if (iframeSrc) return iframeSrc[1]
+
+  if (/^https?:\/\/(www\.)?google\.[^/]+\/maps\/embed/i.test(v)) return v
+
+  // Any other Google Maps or short link, or a plain address: let Maps resolve
+  // it through the keyless embed endpoint.
+  return `https://maps.google.com/maps?q=${encodeURIComponent(v)}&output=embed`
+}
+
+/** A link a visitor can open in the Maps app. */
+export function mapLinkUrl(raw?: string): string {
+  const v = (raw || '').trim()
+  if (!v) return ''
+  const iframeSrc = v.match(/<iframe[^>]*\ssrc=["']([^"']+)["']/i)
+  const url = iframeSrc ? iframeSrc[1] : v
+  if (/^https?:\/\//i.test(url) && !/\/maps\/embed/i.test(url)) return url
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(v)}`
+}
+
 export type CtaAction = 'link' | 'whatsapp' | 'call' | 'email' | 'form'
 
 /**

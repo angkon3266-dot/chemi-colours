@@ -14,6 +14,7 @@ export type BlockType =
   | 'category_grid'
   | 'parallax'
   | 'director'
+  | 'map'
 
 export interface Block {
   id?: number

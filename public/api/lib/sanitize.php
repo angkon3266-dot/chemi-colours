@@ -121,6 +121,23 @@ function safe_url(string $url): bool
     return (bool) preg_match('#^(https?://|mailto:|tel:)#i', $u);
 }
 
+/**
+ * Google's "Embed a map" panel hands you a whole <iframe> tag. strip_tags()
+ * would throw the URL away with it, so pull the src out first and let people
+ * paste whichever form they happen to have.
+ */
+function extract_map_url(string $raw): string
+{
+    $v = trim($raw);
+    if ($v === '') {
+        return '';
+    }
+    if (preg_match('/<iframe[^>]*\ssrc=["\']([^"\']+)["\']/i', $v, $m)) {
+        return mb_substr(html_entity_decode($m[1]), 0, 1000);
+    }
+    return mb_substr(strip_tags($v), 0, 1000);
+}
+
 /** Used for plain-text fields that must never contain markup. */
 function plain(string $text, int $max = 5000): string
 {

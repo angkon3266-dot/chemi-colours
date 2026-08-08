@@ -46,7 +46,7 @@ export function ProductsList() {
   }
   useEffect(load, [])
 
-  const mediaUrl = (id: number | null) => media.find((m) => m.id === id)?.url || ''
+  const mediaUrl = (id: number | null) => media.find((m) => Number(m.id) === Number(id))?.url || ''
   const catName = (id: number | null) => categories.find((c) => c.id === id)?.name || ''
 
   const create = async () => {
@@ -229,8 +229,8 @@ function CategoriesModal({ onClose }: { onClose: () => void }) {
   useEffect(load, [])
 
   const mains = items.filter((c) => !c.parent_id)
-  const childrenOf = (id: number) => items.filter((c) => Number(c.parent_id) === id)
-  const mediaUrl = (id?: number | null) => media.find((m) => m.id === id)?.url || ''
+  const childrenOf = (id: number) => items.filter((c) => Number(c.parent_id) === Number(id))
+  const mediaUrl = (id?: number | null) => media.find((m) => Number(m.id) === Number(id))?.url || ''
 
   const add = async () => {
     setError('')
@@ -503,7 +503,7 @@ export function ProductEditor() {
                   <optgroup key={main.id} label={main.name}>
                     <option value={main.id}>{main.name} (main category)</option>
                     {categories
-                      .filter((s) => Number(s.parent_id) === main.id)
+                      .filter((s) => Number(s.parent_id) === Number(main.id))
                       .map((s) => (
                         <option key={s.id} value={s.id}>
                           &nbsp;&nbsp;{s.name}

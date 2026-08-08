@@ -137,6 +137,57 @@ function migrate(): void
     );
 
     upgrade_products_page_once();
+    add_home_highlights();
+}
+
+/**
+ * Drops a category showcase onto the home page so a first-time visitor can see
+ * what is sold without scrolling. Guarded by a flag row: the home page is
+ * user-editable, and re-adding this block on every request would be a mess.
+ */
+function add_home_highlights(): void
+{
+    $done = db()->query("SELECT `value` FROM settings WHERE `key` = 'home_highlights_v1'")
+        ->fetchColumn();
+    if ($done !== false) {
+        return;
+    }
+    // Claim the flag first: if anything below fails we still never retry.
+    db()->prepare('INSERT IGNORE INTO settings (`key`, `value`) VALUES (?, ?)')
+        ->execute(['home_highlights_v1', '1']);
+
+    $homeId = db()->query('SELECT id FROM pages WHERE is_home = 1 LIMIT 1')->fetchColumn();
+    if ($homeId === false) {
+        return;
+    }
+    $homeId = (int) $homeId;
+
+    $already = db()->prepare(
+        "SELECT COUNT(*) FROM blocks WHERE page_id = ? AND type = 'category_grid'"
+    );
+    $already->execute([$homeId]);
+    if ((int) $already->fetchColumn() > 0) {
+        return;
+    }
+
+    // Sit directly under the hero, ahead of everything else.
+    db()->prepare(
+        'UPDATE blocks SET sort_order = sort_order + 1 WHERE page_id = ? AND sort_order >= 1'
+    )->execute([$homeId]);
+
+    db()->prepare(
+        'INSERT INTO blocks (page_id, type, sort_order, visible, data) VALUES (?, ?, ?, 1, ?)'
+    )->execute([
+        $homeId,
+        'category_grid',
+        1,
+        json_col([
+            'title'    => 'What we supply',
+            'subtitle' => 'Technical dyestuff and auxiliaries across every major class.',
+            'source'   => 'main',
+            'limit'    => 8,
+        ]),
+    ]);
 }
 
 /**
@@ -244,6 +295,9 @@ function seed_settings(): void
     setting_default('footer_address', '');
     setting_default('footer_extra', json_encode([]));
     setting_default('nav_items', json_encode([]));
+    setting_default('nav_bg_color', '#ffffff');
+    setting_default('nav_text_color', '#1f2937');
+    setting_default('footer_map_url', '');
     setting_default('hero_video_url', 'https://d8j0ntlcm91z4.cloudfront.net/user_38xzZboKViGWJOttwIXH07lWA1P/hf_20260602_150901_c45b90ec-18d7-42ff-90e2-b95d7109e330.mp4');
     setting_default('hero_poster_url', '');
     setting_default('contact_email', 'hello@chemicolours.com');

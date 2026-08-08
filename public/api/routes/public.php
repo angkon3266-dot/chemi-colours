@@ -261,11 +261,24 @@ function handle_public(string $method, array $seg): void
     }
 
     if ($method === 'GET' && $head === 'products') {
-        json_out(load_products(true, [
+        $opts = [
             'category' => $_GET['category'] ?? '',
             'search'   => $_GET['search'] ?? '',
             'limit'    => $_GET['limit'] ?? 0,
-        ]));
+            'featured' => !empty($_GET['featured']),
+        ];
+        $rows = load_products(true, $opts);
+
+        // A "featured" strip that nothing is flagged for would render as an
+        // empty section on the home page. Fall back to the newest products so
+        // the site always shows something real.
+        if (!$rows && !empty($opts['featured']) && ($_GET['category'] ?? '') === '') {
+            $opts['featured'] = false;
+            $opts['limit'] = $opts['limit'] ?: 6;
+            $rows = load_products(true, $opts);
+        }
+
+        json_out($rows);
     }
 
     if ($method === 'GET' && $head === 'product') {

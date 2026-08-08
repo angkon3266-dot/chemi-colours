@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom'
 import { Twitter, Circle, Instagram, Linkedin, Mail, Phone, MapPin } from 'lucide-react'
 import { useSite } from '../lib/site'
+import { mapEmbedUrl, mapLinkUrl } from '../lib/contact'
 import type { FooterColumn } from '../lib/types'
 
 function FooterLink({ href, label }: { href: string; label: string }) {
@@ -24,6 +25,8 @@ export default function Footer() {
   const columns: FooterColumn[] = Array.isArray(settings.footer_columns)
     ? settings.footer_columns
     : []
+  const mapEmbed = mapEmbedUrl(settings.footer_map_url)
+  const mapLink = mapLinkUrl(settings.footer_map_url)
   const extras: { label: string; value: string }[] = Array.isArray(settings.footer_extra)
     ? settings.footer_extra.filter((r) => (r?.value || '').trim() !== '')
     : []
@@ -117,8 +120,8 @@ export default function Footer() {
             </div>
           ))}
 
-          {/* Right-hand column: address plus any custom detail rows. */}
-          {(settings.footer_address || extras.length > 0) && (
+          {/* Right-hand column: address, custom detail rows and the map. */}
+          {(settings.footer_address || extras.length > 0 || mapEmbed) && (
             <div className="flex flex-col gap-2.5 col-span-2 sm:col-span-1">
               <h3 className="text-sm font-semibold text-black">Find us</h3>
               {settings.footer_address && (
@@ -132,6 +135,28 @@ export default function Footer() {
                   {row.value}
                 </p>
               ))}
+
+              {mapEmbed && (
+                <>
+                  <div className="mt-1 rounded-xl overflow-hidden border border-gray-200">
+                    <iframe
+                      src={mapEmbed}
+                      title="Our location"
+                      loading="lazy"
+                      referrerPolicy="no-referrer-when-downgrade"
+                      className="w-full h-40 border-0"
+                    />
+                  </div>
+                  <a
+                    href={mapLink}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-sm text-gray-500 hover:text-black transition-colors inline-flex items-center gap-1.5"
+                  >
+                    <MapPin size={13} /> Get directions
+                  </a>
+                </>
+              )}
             </div>
           )}
         </div>

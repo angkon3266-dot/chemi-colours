@@ -34,7 +34,7 @@ function CategoryTile({ category, base }: { category: Category; base: string }) 
         )}
         <span className="mt-auto pt-3 text-sm font-medium text-black inline-flex items-center gap-1">
           {category.childCount
-            ? `${category.childCount} sub-categories`
+            ? `${category.childCount} sub-categor${category.childCount === 1 ? "y" : "ies"}`
             : `${category.productCount} products`}
           <ChevronRight size={14} className="group-hover:translate-x-0.5 transition-transform" />
         </span>

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Plus, Trash2, X, ChevronUp, ChevronDown } from 'lucide-react'
 import { api } from '../lib/api'
+import { mapEmbedUrl } from '../lib/contact'
 import type { FooterColumn, MediaItem, NavItem, Settings } from '../lib/types'
 
 /** Swaps two entries in a list; used by the menu and footer re-order buttons. */
@@ -55,6 +56,8 @@ export default function SettingsEditor() {
   const extras: { label: string; value: string }[] = Array.isArray(s.footer_extra)
     ? s.footer_extra
     : []
+
+  const mapPreview = mapEmbedUrl(s.footer_map_url)
 
   const setColumn = (i: number, patch: Partial<FooterColumn>) =>
     set('footer_columns', columns.map((c, idx) => (idx === i ? { ...c, ...patch } : c)))
@@ -274,6 +277,81 @@ export default function SettingsEditor() {
             </span>
           </Button>
         </div>
+
+        <div className="mt-6 pt-5 border-t border-gray-100">
+          <h3 className="text-sm font-semibold text-black mb-1">Menu bar colours</h3>
+          <p className="text-xs text-gray-400 mb-4">
+            Over the hero video the bar stays semi-transparent so the video shows through.
+          </p>
+          <div className="grid sm:grid-cols-2 gap-4">
+            <Field label="Background">
+              <div className="flex gap-2 items-center">
+                <input
+                  type="color"
+                  value={s.nav_bg_color || '#ffffff'}
+                  onChange={(e) => set('nav_bg_color', e.target.value)}
+                  className="w-12 h-10 rounded-lg border border-gray-200 bg-white cursor-pointer shrink-0"
+                />
+                <Input
+                  value={s.nav_bg_color || ''}
+                  onChange={(e) => set('nav_bg_color', e.target.value)}
+                  placeholder="#ffffff"
+                />
+              </div>
+            </Field>
+            <Field label="Text & logo">
+              <div className="flex gap-2 items-center">
+                <input
+                  type="color"
+                  value={s.nav_text_color || '#1f2937'}
+                  onChange={(e) => set('nav_text_color', e.target.value)}
+                  className="w-12 h-10 rounded-lg border border-gray-200 bg-white cursor-pointer shrink-0"
+                />
+                <Input
+                  value={s.nav_text_color || ''}
+                  onChange={(e) => set('nav_text_color', e.target.value)}
+                  placeholder="#1f2937"
+                />
+              </div>
+            </Field>
+          </div>
+
+          <div
+            className="mt-4 rounded-xl p-4 bg-gray-100 border border-gray-200"
+            aria-label="Menu bar preview"
+          >
+            <div
+              className="rounded-2xl px-4 py-2.5 inline-flex items-center gap-5 shadow-sm"
+              style={{ backgroundColor: s.nav_bg_color || '#ffffff' }}
+            >
+              <svg viewBox="0 0 256 256" className="w-6 h-6" aria-hidden="true">
+                <path
+                  d="M 256 256 L 128 256 L 0 128 L 128 128 Z"
+                  fill={s.nav_text_color || '#1f2937'}
+                />
+                <path
+                  d="M 256 128 L 128 128 L 0 0 L 128 0 Z"
+                  fill={s.nav_text_color || '#1f2937'}
+                />
+              </svg>
+              <span
+                className="text-sm font-medium"
+                style={{ color: s.nav_text_color || '#1f2937' }}
+              >
+                Our story
+              </span>
+              <span
+                className="text-sm font-medium"
+                style={{ color: s.nav_text_color || '#1f2937' }}
+              >
+                Products
+              </span>
+              <span className="bg-black text-white text-sm font-medium px-4 py-1.5 rounded-xl">
+                {s.cta_label || 'Get in touch'}
+              </span>
+            </div>
+          </div>
+        </div>
       </Card>
 
       <Card className="mt-4">
@@ -410,6 +488,29 @@ export default function SettingsEditor() {
               placeholder={'Plot 12, Industrial Area\nDhaka 1216, Bangladesh'}
             />
           </Field>
+
+          <Field
+            label="Google map (footer, right side)"
+            hint="Paste the Google Maps share link, the whole <iframe> from “Embed a map”, or just your address — all three work. Leave blank to hide the map."
+          >
+            <Textarea
+              rows={2}
+              value={s.footer_map_url || ''}
+              onChange={(e) => set('footer_map_url', e.target.value)}
+              placeholder="https://maps.app.goo.gl/…"
+            />
+          </Field>
+
+          {mapPreview && (
+            <div className="rounded-xl overflow-hidden border border-gray-200 max-w-md">
+              <iframe
+                src={mapPreview}
+                title="Map preview"
+                loading="lazy"
+                className="w-full h-44 border-0"
+              />
+            </div>
+          )}
 
           <div className="flex flex-col gap-2">
             <span className="text-sm font-medium text-black">

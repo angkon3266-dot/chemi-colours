@@ -191,6 +191,21 @@ export const BLOCK_SCHEMAS: Record<BlockType, BlockSchema> = {
     ],
     defaults: { eyebrow: '', title: '', image: '', name: '', role: '', html: '', signature: '' },
   },
+  map: {
+    label: 'Google map',
+    description: 'An embedded map of your location with a directions link.',
+    fields: [
+      { key: 'title', label: 'Heading', type: 'text' },
+      { key: 'address', label: 'Address shown above the map', type: 'textarea' },
+      {
+        key: 'mapUrl',
+        label: 'Google Maps link or embed code',
+        type: 'textarea',
+        hint: 'Paste the share link, the whole <iframe> from "Embed a map", or just your address — all three work.',
+      },
+    ],
+    defaults: { title: 'Find us', address: '', mapUrl: '' },
+  },
   cta: {
     label: 'Call to action',
     description: 'A black panel with a button.',
@@ -247,5 +262,5 @@ export const BLOCK_ORDER: BlockType[] = [
   'hero', 'pagehero', 'richtext', 'director',
   'category_grid', 'parallax', 'product_grid',
   'features', 'stats', 'timeline', 'gallery',
-  'cta', 'contact', 'faq', 'logos',
+  'cta', 'contact', 'map', 'faq', 'logos',
 ]
