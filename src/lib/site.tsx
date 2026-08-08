@@ -84,9 +84,15 @@ export function SiteProvider({ children }: { children: ReactNode }) {
       .get<Bootstrap>('/bootstrap')
       .then((b) => {
         if (cancelled) return
+        const settings = { ...FALLBACK.settings, ...(b.settings || {}) }
+
+        // A hand-built menu wins; otherwise the menu is derived from pages.
+        const custom = Array.isArray(settings.nav_items) ? settings.nav_items : []
+        const usable = custom.filter((i: NavItem) => i?.label?.trim() && i?.href?.trim())
+
         setData({
-          settings: { ...FALLBACK.settings, ...(b.settings || {}) },
-          nav: b.nav?.length ? b.nav : FALLBACK.nav,
+          settings,
+          nav: usable.length ? usable : b.nav?.length ? b.nav : FALLBACK.nav,
           home: b.home ?? FALLBACK.home,
         })
         setOffline(false)

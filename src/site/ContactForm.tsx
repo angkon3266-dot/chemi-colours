@@ -34,9 +34,15 @@ const INPUT =
 export default function ContactForm({
   collapsible = true,
   defaultOpen,
+  subject,
+  openSignal = 0,
 }: {
   collapsible?: boolean
   defaultOpen?: boolean
+  /** Pre-fills the message, e.g. the product being viewed. */
+  subject?: string
+  /** Bump this from a parent to force the form open (e.g. "Send enquiry"). */
+  openSignal?: number
 }) {
   const { settings } = useSite()
 
@@ -50,8 +56,9 @@ export default function ContactForm({
   const [selected, setSelected] = useState<string[]>([])
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
+  const [phone, setPhone] = useState('')
   const [company, setCompany] = useState('')
-  const [message, setMessage] = useState('')
+  const [message, setMessage] = useState(subject ? `I'd like to enquire about ${subject}.` : '')
   const [website, setWebsite] = useState('') // honeypot
   const [sending, setSending] = useState(false)
   const [sent, setSent] = useState(false)
@@ -70,6 +77,10 @@ export default function ContactForm({
     if (sent) setOpen(true)
   }, [sent])
 
+  useEffect(() => {
+    if (openSignal > 0) setOpen(true)
+  }, [openSignal])
+
   const toggleService = (service: string) => {
     setSelected((prev) =>
       prev.includes(service) ? prev.filter((s) => s !== service) : [...prev, service]
@@ -81,7 +92,9 @@ export default function ContactForm({
     setError('')
     setSending(true)
     try {
-      await api.post('/leads', { name, email, company, message, services: selected, website })
+      await api.post('/leads', {
+        name, email, phone, company, message, services: selected, website,
+      })
       setSent(true)
     } catch (err: any) {
       setError(err?.message || 'Could not send your message. Please try again.')
@@ -185,13 +198,22 @@ export default function ContactForm({
                     />
                   </div>
 
-                  <input
-                    type="text"
-                    placeholder="Company / mill name"
-                    value={company}
-                    onChange={(e) => setCompany(e.target.value)}
-                    className={INPUT}
-                  />
+                  <div className="flex flex-col sm:flex-row gap-2">
+                    <input
+                      type="tel"
+                      placeholder="Mobile number"
+                      value={phone}
+                      onChange={(e) => setPhone(e.target.value)}
+                      className={INPUT}
+                    />
+                    <input
+                      type="text"
+                      placeholder="Company / mill name"
+                      value={company}
+                      onChange={(e) => setCompany(e.target.value)}
+                      className={INPUT}
+                    />
+                  </div>
 
                   {/* Honeypot: hidden from humans, catches naive bots */}
                   <input

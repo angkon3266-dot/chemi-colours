@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Trash2, Upload, Link2, Copy, Check } from 'lucide-react'
 import { api } from '../lib/api'
 import type { MediaItem } from '../lib/types'
-import { Button, Card, Input, INPUT_CLS } from './ui'
+import { Button, Card, Input, INPUT_CLS, MediaThumb } from './ui'
 
 export default function MediaPage() {
   const [items, setItems] = useState<MediaItem[]>([])
@@ -165,13 +165,7 @@ export default function MediaPage() {
           {items.map((m) => (
             <div key={m.id} className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
               <div className="aspect-[4/3] bg-gray-50 flex items-center justify-center overflow-hidden">
-                {m.kind === 'image' ? (
-                  <img src={m.url} alt={m.alt} className="w-full h-full object-cover" />
-                ) : m.kind === 'video' ? (
-                  <video src={m.url} muted className="w-full h-full object-cover" />
-                ) : (
-                  <span className="text-xs font-semibold text-gray-400 uppercase">PDF</span>
-                )}
+                <MediaThumb item={m} />
               </div>
               <div className="p-3">
                 <p className="text-xs text-gray-700 truncate" title={m.name}>

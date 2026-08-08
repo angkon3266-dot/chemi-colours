@@ -2,9 +2,12 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { api } from '../lib/api'
 import { useSite } from '../lib/site'
+import { resolveCta } from '../lib/contact'
+import type { CtaAction } from '../lib/contact'
 import type { Block, Category, Product } from '../lib/types'
 import ContactForm from './ContactForm'
 import ProductCard from './ProductCard'
+import ParallaxCategories from './ParallaxCategories'
 
 const SECTION = 'py-12 sm:py-16 px-4 sm:px-6'
 const INNER = 'max-w-6xl mx-auto'
@@ -39,22 +42,25 @@ function Hero({ data }: { data: Record<string, any> }) {
         <div className="flex-1 min-h-[5rem]" />
 
         <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-6">
-          <p className="text-white text-3xl sm:text-4xl xl:text-5xl font-medium leading-tight drop-shadow-lg lg:max-w-lg xl:max-w-2xl shrink-0">
-            {data.headline}
-            <br />
-            {data.headline2}{' '}
-            {data.accent && (
-              <span
-                style={{
-                  fontFamily: "'Instrument Serif', serif",
-                  fontStyle: 'italic',
-                  fontWeight: 400,
-                }}
-              >
-                {data.accent}
-              </span>
-            )}
-          </p>
+          <div className="lg:max-w-lg xl:max-w-2xl shrink-0">
+            <p className="text-white text-3xl sm:text-4xl xl:text-5xl font-medium leading-tight drop-shadow-lg">
+              {data.headline}
+              <br />
+              {data.headline2}{' '}
+              {data.accent && (
+                <span
+                  style={{
+                    fontFamily: "'Instrument Serif', serif",
+                    fontStyle: 'italic',
+                    fontWeight: 400,
+                  }}
+                >
+                  {data.accent}
+                </span>
+              )}
+            </p>
+            {data.ctaEnabled && data.ctaLabel && <HeroCta data={data} />}
+          </div>
 
           {data.showForm !== false && (
             <div className="w-full lg:w-[min(480px,45%)] shrink-0">
@@ -64,6 +70,46 @@ function Hero({ data }: { data: Record<string, any> }) {
         </div>
       </div>
     </section>
+  )
+}
+
+/** Configurable button over the hero video: link, WhatsApp, call, email or form. */
+function HeroCta({ data }: { data: Record<string, any> }) {
+  const { settings } = useSite()
+  const { href, external, scroll } = resolveCta(
+    settings,
+    data.ctaAction as CtaAction,
+    data.ctaHref
+  )
+  if (!href) return null
+
+  const cls =
+    'mt-7 inline-flex items-center gap-2 bg-white text-black text-sm font-semibold px-6 py-3.5 rounded-2xl hover:bg-gray-100 transition-colors shadow-lg'
+
+  if (scroll) {
+    return (
+      <button
+        type="button"
+        onClick={() =>
+          document.getElementById('enquiry')?.scrollIntoView({ behavior: 'smooth' })
+        }
+        className={cls}
+      >
+        {data.ctaLabel}
+      </button>
+    )
+  }
+  if (external) {
+    return (
+      <a href={href} target="_blank" rel="noopener noreferrer" className={cls}>
+        {data.ctaLabel}
+      </a>
+    )
+  }
+  return (
+    <Link to={href} className={cls}>
+      {data.ctaLabel}
+    </Link>
   )
 }
 
@@ -290,6 +336,194 @@ function ProductGrid({ data }: { data: Record<string, any> }) {
   )
 }
 
+/* --------------------------------------------------- categories / parallax -- */
+function useCategories() {
+  const [categories, setCategories] = useState<Category[]>([])
+  const [loading, setLoading] = useState(true)
+  useEffect(() => {
+    api
+      .get<Category[]>('/categories')
+      .then(setCategories)
+      .catch(() => setCategories([]))
+      .finally(() => setLoading(false))
+  }, [])
+  return { categories, loading }
+}
+
+/** Grid of main categories, sub-categories, or products — with images. */
+function CategoryGrid({ data }: { data: Record<string, any> }) {
+  const { categories, loading } = useCategories()
+  const [products, setProducts] = useState<Product[]>([])
+  const source = data.source || 'main'
+
+  useEffect(() => {
+    if (source !== 'products') return
+    const params = new URLSearchParams()
+    if (data.limit) params.set('limit', String(data.limit))
+    api
+      .get<Product[]>(`/products?${params}`)
+      .then(setProducts)
+      .catch(() => setProducts([]))
+  }, [source, data.limit])
+
+  let tiles: { key: string; name: string; image: string; sub: string; to: string }[] = []
+
+  if (source === 'products') {
+    tiles = products.map((p) => ({
+      key: `p${p.id}`,
+      name: p.name,
+      image: p.image,
+      sub: p.category,
+      to: `/products/${p.slug}`,
+    }))
+  } else if (source === 'sub') {
+    tiles = categories
+      .flatMap((c) => (c.children || []).map((s) => ({ parent: c, sub: s })))
+      .map(({ parent, sub }) => ({
+        key: `s${sub.id}`,
+        name: sub.name,
+        image: sub.image || '',
+        sub: `${sub.productCount ?? 0} products`,
+        to: `/category/${parent.slug}/${sub.slug}`,
+      }))
+  } else {
+    tiles = categories.map((c) => ({
+      key: `c${c.id}`,
+      name: c.name,
+      image: c.image || '',
+      sub: c.childCount
+        ? `${c.childCount} sub-categories`
+        : `${c.productCount ?? 0} products`,
+      to: `/category/${c.slug}`,
+    }))
+  }
+
+  if (data.limit && source !== 'products') tiles = tiles.slice(0, Number(data.limit))
+
+  return (
+    <section className={SECTION}>
+      <div className={INNER}>
+        {(data.title || data.subtitle) && (
+          <div className="mb-8">
+            {data.title && (
+              <h2 className="text-2xl sm:text-3xl font-medium text-black">{data.title}</h2>
+            )}
+            {data.subtitle && <p className="mt-2 text-gray-500">{data.subtitle}</p>}
+          </div>
+        )}
+
+        {loading && source !== 'products' ? (
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
+            {[0, 1, 2].map((i) => (
+              <div key={i} className="rounded-2xl border border-gray-200 overflow-hidden">
+                <div className="aspect-[4/3] bg-gray-100 animate-pulse" />
+                <div className="p-4 h-16" />
+              </div>
+            ))}
+          </div>
+        ) : tiles.length === 0 ? (
+          <p className="text-sm text-gray-500">Nothing to show yet. Add items in the admin panel.</p>
+        ) : (
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
+            {tiles.map((t) => (
+              <Link
+                key={t.key}
+                to={t.to}
+                className="group flex flex-col rounded-2xl border border-gray-200 bg-white overflow-hidden hover:border-gray-400 hover:shadow-lg transition-all"
+              >
+                <div className="aspect-[4/3] bg-gray-50 overflow-hidden">
+                  {t.image ? (
+                    <img
+                      src={t.image}
+                      alt={t.name}
+                      loading="lazy"
+                      className="w-full h-full object-cover group-hover:scale-[1.03] transition-transform duration-500"
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-gray-300 text-sm">
+                      No image
+                    </div>
+                  )}
+                </div>
+                <div className="p-4">
+                  <h3 className="text-base font-semibold text-black">{t.name}</h3>
+                  {t.sub && <p className="text-sm text-gray-500 mt-0.5">{t.sub}</p>}
+                </div>
+              </Link>
+            ))}
+          </div>
+        )}
+      </div>
+    </section>
+  )
+}
+
+/** Alternating scroll-reveal list of main categories. */
+function Parallax({ data }: { data: Record<string, any> }) {
+  const { categories, loading } = useCategories()
+  if (loading) {
+    return (
+      <div className="px-4 sm:px-6 py-16 max-w-6xl mx-auto">
+        <div className="h-72 bg-gray-50 rounded-2xl animate-pulse" />
+      </div>
+    )
+  }
+  return (
+    <ParallaxCategories categories={categories} title={data.title} subtitle={data.subtitle} />
+  )
+}
+
+/* -------------------------------------------------- director's message --- */
+function Director({ data }: { data: Record<string, any> }) {
+  return (
+    <section className={SECTION}>
+      <div className={`${INNER} grid lg:grid-cols-[320px_1fr] gap-8 lg:gap-14 items-start`}>
+        <div className="flex flex-col gap-4">
+          {data.image ? (
+            <img
+              src={data.image}
+              alt={data.name || ''}
+              className="w-full aspect-[3/4] object-cover rounded-2xl"
+            />
+          ) : (
+            <div className="w-full aspect-[3/4] rounded-2xl bg-gray-100 flex items-center justify-center text-gray-300 text-sm">
+              No photo
+            </div>
+          )}
+          {(data.name || data.role) && (
+            <div>
+              {data.name && <p className="font-semibold text-black">{data.name}</p>}
+              {data.role && <p className="text-sm text-gray-500">{data.role}</p>}
+            </div>
+          )}
+        </div>
+
+        <div>
+          {data.eyebrow && (
+            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-gray-400 mb-3">
+              {data.eyebrow}
+            </p>
+          )}
+          {data.title && (
+            <h2 className="text-2xl sm:text-3xl font-medium text-black mb-5 leading-snug">
+              {data.title}
+            </h2>
+          )}
+          {data.html && (
+            <div
+              className="prose-chemi text-gray-600 leading-relaxed"
+              dangerouslySetInnerHTML={{ __html: data.html }}
+            />
+          )}
+          {data.signature && (
+            <img src={data.signature} alt="" className="mt-6 h-14 object-contain" />
+          )}
+        </div>
+      </div>
+    </section>
+  )
+}
+
 /* --------------------------------------------------------------- gallery -- */
 function Gallery({ data }: { data: Record<string, any> }) {
   const images: any[] = Array.isArray(data.images) ? data.images : []
@@ -299,17 +533,35 @@ function Gallery({ data }: { data: Record<string, any> }) {
         {data.title && (
           <h2 className="text-2xl sm:text-3xl font-medium text-black mb-8">{data.title}</h2>
         )}
-        <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
-          {images.map((img, i) => (
-            <div key={i} className="rounded-2xl overflow-hidden bg-gray-50 aspect-[4/3]">
-              <img
-                src={typeof img === 'string' ? img : img.url}
-                alt={typeof img === 'string' ? '' : img.alt || ''}
-                loading="lazy"
-                className="w-full h-full object-cover hover:scale-[1.03] transition-transform duration-500"
-              />
-            </div>
-          ))}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
+          {images.map((img, i) => {
+            const item = typeof img === 'string' ? { url: img } : img
+            const hasCaption = item.title || item.description
+            return (
+              <figure key={i} className="flex flex-col">
+                <div className="rounded-2xl overflow-hidden bg-gray-50 aspect-[4/3]">
+                  <img
+                    src={item.url}
+                    alt={item.alt || item.title || ''}
+                    loading="lazy"
+                    className="w-full h-full object-cover hover:scale-[1.03] transition-transform duration-500"
+                  />
+                </div>
+                {hasCaption && (
+                  <figcaption className="mt-3">
+                    {item.title && (
+                      <h3 className="text-base font-semibold text-black">{item.title}</h3>
+                    )}
+                    {item.description && (
+                      <p className="text-sm text-gray-500 leading-relaxed mt-1">
+                        {item.description}
+                      </p>
+                    )}
+                  </figcaption>
+                )}
+              </figure>
+            )
+          })}
         </div>
       </div>
     </section>
@@ -343,7 +595,7 @@ function Cta({ data }: { data: Record<string, any> }) {
 /* --------------------------------------------------------------- contact -- */
 function ContactBlock({ data }: { data: Record<string, any> }) {
   return (
-    <section className={SECTION}>
+    <section id="enquiry" className={SECTION}>
       <div className={`${INNER} grid lg:grid-cols-2 gap-8 items-start`}>
         <div>
           {data.title && (
@@ -447,6 +699,12 @@ export function BlockRenderer({ block }: { block: Block }) {
       return <Faq data={d} />
     case 'logos':
       return <Logos data={d} />
+    case 'category_grid':
+      return <CategoryGrid data={d} />
+    case 'parallax':
+      return <Parallax data={d} />
+    case 'director':
+      return <Director data={d} />
     default:
       return null
   }

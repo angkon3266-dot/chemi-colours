@@ -100,6 +100,16 @@ export default function LeadsInbox() {
                   >
                     {l.email}
                   </a>
+                  {l.phone && (
+                    <p className="text-sm">
+                      <a
+                        href={`tel:${l.phone.replace(/[^\d+]/g, '')}`}
+                        className="text-blue-600 hover:underline"
+                      >
+                        {l.phone}
+                      </a>
+                    </p>
+                  )}
                   {l.company && <p className="text-sm text-gray-500">{l.company}</p>}
                 </div>
                 <div className="flex items-center gap-1 shrink-0">

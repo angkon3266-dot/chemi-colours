@@ -24,6 +24,9 @@ export default function Footer() {
   const columns: FooterColumn[] = Array.isArray(settings.footer_columns)
     ? settings.footer_columns
     : []
+  const extras: { label: string; value: string }[] = Array.isArray(settings.footer_extra)
+    ? settings.footer_extra.filter((r) => (r?.value || '').trim() !== '')
+    : []
 
   const socials = [
     { key: 'social_twitter', Icon: Twitter, label: 'Twitter' },
@@ -37,12 +40,27 @@ export default function Footer() {
       <div className="flex flex-col lg:flex-row gap-8 lg:gap-12">
         <div className="lg:max-w-sm flex flex-col gap-3">
           <div className="flex items-center gap-2">
-            <svg viewBox="0 0 256 256" className="w-7 h-7" aria-hidden="true">
-              <path d="M 256 256 L 128 256 L 0 128 L 128 128 Z" fill="black" />
-              <path d="M 256 128 L 128 128 L 0 0 L 128 0 Z" fill="black" />
-            </svg>
-            <span className="font-semibold text-black">{settings.site_name || 'Chemi Colours'}</span>
+            {settings.logo_url ? (
+              <img
+                src={settings.logo_url}
+                alt={settings.site_name || 'Logo'}
+                className="h-8 w-auto max-w-[180px] object-contain"
+              />
+            ) : (
+              <>
+                <svg viewBox="0 0 256 256" className="w-7 h-7" aria-hidden="true">
+                  <path d="M 256 256 L 128 256 L 0 128 L 128 128 Z" fill="black" />
+                  <path d="M 256 128 L 128 128 L 0 0 L 128 0 Z" fill="black" />
+                </svg>
+                <span className="font-semibold text-black">
+                  {settings.site_name || 'Chemi Colours'}
+                </span>
+              </>
+            )}
           </div>
+          {settings.tagline && (
+            <p className="text-sm font-medium text-gray-700">{settings.tagline}</p>
+          )}
           {settings.footer_tagline && (
             <p className="text-sm text-gray-500 leading-relaxed">{settings.footer_tagline}</p>
           )}
@@ -98,6 +116,24 @@ export default function Footer() {
               ))}
             </div>
           ))}
+
+          {/* Right-hand column: address plus any custom detail rows. */}
+          {(settings.footer_address || extras.length > 0) && (
+            <div className="flex flex-col gap-2.5 col-span-2 sm:col-span-1">
+              <h3 className="text-sm font-semibold text-black">Find us</h3>
+              {settings.footer_address && (
+                <p className="text-sm text-gray-500 leading-relaxed whitespace-pre-line">
+                  {settings.footer_address}
+                </p>
+              )}
+              {extras.map((row, i) => (
+                <p key={i} className="text-sm text-gray-500">
+                  {row.label && <span className="text-gray-400">{row.label}: </span>}
+                  {row.value}
+                </p>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 

@@ -119,10 +119,71 @@ function migrate(): void
         INDEX status_time (status, created_at)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
 
+    // --- incremental migrations (safe to re-run) ---------------------------
+    add_column('categories', 'parent_id', 'INT NULL');
+    add_column('categories', 'image_id', 'INT NULL');
+    add_column('categories', 'summary', "VARCHAR(400) NOT NULL DEFAULT ''");
+    add_column('leads', 'phone', "VARCHAR(40) NOT NULL DEFAULT ''");
+
     seed_settings();
     seed_categories();
     seed_pages();
     seed_products();
+
+    // The header button was renamed; move existing installs across once.
+    db()->exec(
+        "UPDATE settings SET `value` = 'Get in touch'
+         WHERE `key` = 'cta_label' AND `value` = 'Start a project'"
+    );
+
+    upgrade_products_page_once();
+}
+
+/**
+ * The Products page originally held a flat product grid; it now leads with the
+ * category showcase. Runs at most once, and only while the page still matches
+ * what was seeded — so a hand-edited page is never overwritten.
+ */
+function upgrade_products_page_once(): void
+{
+    $done = db()->query("SELECT `value` FROM settings WHERE `key` = 'migrated_products_parallax'")
+        ->fetchColumn();
+    if ($done !== false) {
+        return;
+    }
+    setting_default('migrated_products_parallax', '1');
+
+    $pageId = db()->query("SELECT id FROM pages WHERE slug = 'products' LIMIT 1")->fetchColumn();
+    if ($pageId === false) {
+        return;
+    }
+
+    $stmt = db()->prepare("SELECT id FROM blocks WHERE page_id = ? AND type = 'product_grid'");
+    $stmt->execute([$pageId]);
+    $blockId = $stmt->fetchColumn();
+    if ($blockId === false) {
+        return;
+    }
+
+    $upd = db()->prepare("UPDATE blocks SET type = 'parallax', data = ? WHERE id = ?");
+    $upd->execute([json_col(['title' => '', 'subtitle' => '']), $blockId]);
+}
+
+/** Adds a column only when it is missing, so migrate() stays idempotent. */
+function add_column(string $table, string $column, string $definition): void
+{
+    $allowed = ['categories', 'products', 'leads', 'pages', 'media', 'blocks'];
+    if (!in_array($table, $allowed, true) || !preg_match('/^[a-z_]+$/', $column)) {
+        throw new ApiError('Bad migration target.', 500);
+    }
+    $stmt = db()->prepare(
+        'SELECT COUNT(*) FROM information_schema.COLUMNS
+         WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = ?'
+    );
+    $stmt->execute([$table, $column]);
+    if ((int) $stmt->fetchColumn() === 0) {
+        db()->exec("ALTER TABLE `$table` ADD COLUMN `$column` $definition");
+    }
 }
 
 /**
@@ -175,12 +236,20 @@ function seed_settings(): void
 {
     setting_default('site_name', 'Chemi Colours');
     setting_default('logo_text', 'Chemi Colours');
+    setting_default('logo_url', '');
+    setting_default('tagline', 'Dyestuff for dyeing factories');
+    setting_default('whatsapp_number', '');
+    setting_default('whatsapp_message', 'Hello, I would like to enquire about');
+    setting_default('call_number', '');
+    setting_default('footer_address', '');
+    setting_default('footer_extra', json_encode([]));
+    setting_default('nav_items', json_encode([]));
     setting_default('hero_video_url', 'https://d8j0ntlcm91z4.cloudfront.net/user_38xzZboKViGWJOttwIXH07lWA1P/hf_20260602_150901_c45b90ec-18d7-42ff-90e2-b95d7109e330.mp4');
     setting_default('hero_poster_url', '');
     setting_default('contact_email', 'hello@chemicolours.com');
     setting_default('contact_phone', '');
     setting_default('address', '');
-    setting_default('cta_label', 'Start a project');
+    setting_default('cta_label', 'Get in touch');
     setting_default('cta_href', '/contact');
     setting_default('footer_tagline', 'Dyestuff and textile chemicals for mills that cannot afford a bad batch.');
     setting_default('footer_note', '© ' . date('Y') . ' Chemi Colours. All rights reserved.');
@@ -315,11 +384,9 @@ function seed_pages(): void
         'title'    => 'The catalogue',
         'subtitle' => 'Filter by class to find the right dyestuff for your substrate.',
     ]);
-    add_block($prod, 'product_grid', 1, [
-        'title'      => '',
-        'mode'       => 'all',
-        'showFilter' => true,
-        'limit'      => 0,
+    add_block($prod, 'parallax', 1, [
+        'title'    => '',
+        'subtitle' => '',
     ]);
 
     $contact = create_seed_page('contact', 'Contact', 'Contact', 4, false, true);

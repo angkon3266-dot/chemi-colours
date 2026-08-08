@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { Plus, Trash2, ArrowLeft, X } from 'lucide-react'
 import { api } from '../lib/api'
-import type { AdminProduct, Category, MediaItem } from '../lib/types'
+import type { AdminCategory, AdminProduct, MediaItem } from '../lib/types'
 import {
   Button, Card, Field, Input, Modal, Select, Textarea, Toggle, useSaveState,
   MediaPicker, MediaLibraryModal,
@@ -20,7 +20,7 @@ const BLANK: AdminProduct = {
 
 export function ProductsList() {
   const [products, setProducts] = useState<AdminProduct[]>([])
-  const [categories, setCategories] = useState<Category[]>([])
+  const [categories, setCategories] = useState<AdminCategory[]>([])
   const [media, setMedia] = useState<MediaItem[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -33,7 +33,7 @@ export function ProductsList() {
     setLoading(true)
     Promise.all([
       api.get<AdminProduct[]>('/admin/products'),
-      api.get<Category[]>('/admin/categories'),
+      api.get<AdminCategory[]>(`/admin/categories`),
       api.get<MediaItem[]>('/admin/media?kind=image'),
     ])
       .then(([p, c, m]) => {
@@ -195,7 +195,6 @@ export function ProductsList() {
 
       {managingCats && (
         <CategoriesModal
-          categories={categories}
           onClose={() => {
             setManagingCats(false)
             load()
@@ -208,69 +207,197 @@ export function ProductsList() {
 
 /* -------------------------------------------------------------- categories */
 
-function CategoriesModal({
-  categories,
-  onClose,
-}: {
-  categories: Category[]
-  onClose: () => void
-}) {
-  const [items, setItems] = useState(categories)
+function CategoriesModal({ onClose }: { onClose: () => void }) {
+  const [items, setItems] = useState<AdminCategory[]>([])
+  const [media, setMedia] = useState<MediaItem[]>([])
   const [name, setName] = useState('')
+  const [parentId, setParentId] = useState<number | ''>('')
   const [error, setError] = useState('')
+  const [editing, setEditing] = useState<AdminCategory | null>(null)
+
+  const load = () => {
+    Promise.all([
+      api.get<AdminCategory[]>('/admin/categories'),
+      api.get<MediaItem[]>('/admin/media?kind=image'),
+    ])
+      .then(([c, m]) => {
+        setItems(c)
+        setMedia(m)
+      })
+      .catch((e) => setError(e.message))
+  }
+  useEffect(load, [])
+
+  const mains = items.filter((c) => !c.parent_id)
+  const childrenOf = (id: number) => items.filter((c) => Number(c.parent_id) === id)
+  const mediaUrl = (id?: number | null) => media.find((m) => m.id === id)?.url || ''
 
   const add = async () => {
+    setError('')
     try {
-      const r = await api.post<{ id: number }>('/admin/categories', {
+      await api.post('/admin/categories', {
         name,
+        parent_id: parentId || 0,
         sort_order: items.length,
       })
-      setItems((prev) => [...prev, { id: r.id, slug: '', name }])
       setName('')
+      setParentId('')
+      load()
     } catch (e: any) {
       setError(e.message)
     }
   }
 
-  const remove = async (c: Category) => {
-    if (!confirm(`Delete "${c.name}"? Products keep existing but become uncategorised.`)) return
+  const saveEdit = async () => {
+    if (!editing) return
+    setError('')
     try {
-      await api.del(`/admin/categories/${c.id}`)
-      setItems((prev) => prev.filter((x) => x.id !== c.id))
+      await api.put(`/admin/categories/${editing.id}`, editing)
+      setEditing(null)
+      load()
     } catch (e: any) {
       setError(e.message)
     }
+  }
+
+  const remove = async (c: AdminCategory) => {
+    const kids = childrenOf(c.id).length
+    const warn = kids
+      ? `"${c.name}" has ${kids} sub-categor${kids === 1 ? 'y' : 'ies'}. They will be moved to the top level.`
+      : `Delete "${c.name}"? Products keep existing but become uncategorised.`
+    if (!confirm(warn)) return
+    try {
+      await api.del(`/admin/categories/${c.id}`)
+      load()
+    } catch (e: any) {
+      setError(e.message)
+    }
+  }
+
+  const Row = ({ c, isChild }: { c: AdminCategory; isChild?: boolean }) => (
+    <div
+      className={`flex items-center gap-3 border border-gray-200 rounded-xl px-3 py-2.5 ${
+        isChild ? 'ml-6' : ''
+      }`}
+    >
+      <div className="w-10 h-8 rounded-lg bg-gray-50 overflow-hidden shrink-0">
+        {mediaUrl(c.image_id) && (
+          <img src={mediaUrl(c.image_id)} alt="" className="w-full h-full object-cover" />
+        )}
+      </div>
+      <span className="text-sm text-black flex-1 min-w-0 truncate">{c.name}</span>
+      <button
+        type="button"
+        onClick={() => setEditing(c)}
+        className="text-xs font-medium text-gray-600 hover:text-black"
+      >
+        Edit
+      </button>
+      <button
+        type="button"
+        onClick={() => remove(c)}
+        className="w-7 h-7 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 flex items-center justify-center"
+        aria-label="Delete category"
+      >
+        <Trash2 size={14} />
+      </button>
+    </div>
+  )
+
+  if (editing) {
+    return (
+      <Modal title={`Edit "${editing.name}"`} onClose={() => setEditing(null)}>
+        <div className="flex flex-col gap-4">
+          {error && <p className="text-sm text-red-600">{error}</p>}
+          <Field label="Name">
+            <Input
+              value={editing.name}
+              onChange={(e) => setEditing({ ...editing, name: e.target.value })}
+            />
+          </Field>
+          <Field label="Parent category" hint="Leave as top level to make this a main category.">
+            <Select
+              value={editing.parent_id ?? ''}
+              onChange={(e) =>
+                setEditing({ ...editing, parent_id: e.target.value ? Number(e.target.value) : null })
+              }
+            >
+              <option value="">— Top level (main category) —</option>
+              {mains
+                .filter((m) => m.id !== editing.id)
+                .map((m) => (
+                  <option key={m.id} value={m.id}>
+                    {m.name}
+                  </option>
+                ))}
+            </Select>
+          </Field>
+          <Field label="Short summary" hint="Shown under the name when browsing.">
+            <Textarea
+              rows={2}
+              value={editing.summary || ''}
+              onChange={(e) => setEditing({ ...editing, summary: e.target.value })}
+            />
+          </Field>
+          <MediaPicker
+            kind="image"
+            label="Category image"
+            valueId={editing.image_id ?? null}
+            valueUrl={mediaUrl(editing.image_id)}
+            onPick={(mid) => setEditing({ ...editing, image_id: mid })}
+          />
+          <Field label="Sort order">
+            <Input
+              type="number"
+              value={editing.sort_order ?? 0}
+              onChange={(e) => setEditing({ ...editing, sort_order: Number(e.target.value) })}
+            />
+          </Field>
+          <div className="flex gap-2 justify-end">
+            <Button variant="ghost" onClick={() => setEditing(null)}>
+              Cancel
+            </Button>
+            <Button onClick={saveEdit}>Save</Button>
+          </div>
+        </div>
+      </Modal>
+    )
   }
 
   return (
-    <Modal title="Product categories" onClose={onClose}>
+    <Modal title="Categories & sub-categories" onClose={onClose}>
       <div className="flex flex-col gap-3">
         {error && <p className="text-sm text-red-600">{error}</p>}
-        {items.map((c) => (
-          <div
-            key={c.id}
-            className="flex items-center justify-between gap-3 border border-gray-200 rounded-xl px-3 py-2.5"
-          >
-            <span className="text-sm text-black">{c.name}</span>
-            <button
-              type="button"
-              onClick={() => remove(c)}
-              className="w-7 h-7 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 flex items-center justify-center"
-              aria-label="Delete category"
-            >
-              <Trash2 size={14} />
-            </button>
+
+        {mains.map((c) => (
+          <div key={c.id} className="flex flex-col gap-2">
+            <Row c={c} />
+            {childrenOf(c.id).map((s) => (
+              <Row key={s.id} c={s} isChild />
+            ))}
           </div>
         ))}
-        <div className="flex gap-2">
+
+        <div className="border-t border-gray-100 pt-3 flex flex-col gap-2">
+          <span className="text-sm font-medium text-black">Add a category</span>
           <Input
             value={name}
             onChange={(e) => setName(e.target.value)}
-            placeholder="New category name"
+            placeholder="Category name"
           />
-          <Button onClick={add} disabled={!name.trim()}>
-            Add
-          </Button>
+          <div className="flex gap-2">
+            <Select value={parentId} onChange={(e) => setParentId(e.target.value ? Number(e.target.value) : '')}>
+              <option value="">— Top level (main category) —</option>
+              {mains.map((m) => (
+                <option key={m.id} value={m.id}>
+                  Sub-category of {m.name}
+                </option>
+              ))}
+            </Select>
+            <Button onClick={add} disabled={!name.trim()}>
+              Add
+            </Button>
+          </div>
         </div>
       </div>
     </Modal>
@@ -285,7 +412,7 @@ export function ProductEditor() {
   const save = useSaveState()
 
   const [p, setP] = useState<AdminProduct | null>(null)
-  const [categories, setCategories] = useState<Category[]>([])
+  const [categories, setCategories] = useState<AdminCategory[]>([])
   const [media, setMedia] = useState<MediaItem[]>([])
   const [loading, setLoading] = useState(true)
   const [fibreInput, setFibreInput] = useState('')
@@ -294,7 +421,7 @@ export function ProductEditor() {
   useEffect(() => {
     Promise.all([
       api.get<AdminProduct>(`/admin/products/${id}`),
-      api.get<Category[]>('/admin/categories'),
+      api.get<AdminCategory[]>(`/admin/categories`),
       api.get<MediaItem[]>('/admin/media'),
     ])
       .then(([prod, cats, m]) => {
@@ -361,17 +488,29 @@ export function ProductEditor() {
           <Field label="Name">
             <Input value={p.name} onChange={(e) => set('name', e.target.value)} />
           </Field>
-          <Field label="Category">
+          <Field
+            label="Category"
+            hint="Pick a sub-category for the deepest level, or a main category directly."
+          >
             <Select
               value={p.categoryId ?? ''}
               onChange={(e) => set('categoryId', e.target.value ? Number(e.target.value) : null)}
             >
               <option value="">Uncategorised</option>
-              {categories.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
+              {categories
+                .filter((c) => !c.parent_id)
+                .map((main) => (
+                  <optgroup key={main.id} label={main.name}>
+                    <option value={main.id}>{main.name} (main category)</option>
+                    {categories
+                      .filter((s) => Number(s.parent_id) === main.id)
+                      .map((s) => (
+                        <option key={s.id} value={s.id}>
+                          &nbsp;&nbsp;{s.name}
+                        </option>
+                      ))}
+                  </optgroup>
+                ))}
             </Select>
           </Field>
           <Field label="Status">

@@ -28,10 +28,26 @@ export const BLOCK_SCHEMAS: Record<BlockType, BlockSchema> = {
       { key: 'headline2', label: 'Headline — second line', type: 'text' },
       { key: 'accent', label: 'Accent word', type: 'text', hint: 'Shown in italic serif at the end of line two.' },
       { key: 'useSiteVideo', label: 'Use the site-wide background video', type: 'bool', hint: 'Set that video under Settings.' },
-      { key: 'videoUrl', label: 'Custom video URL', type: 'text', hint: 'Only used when the option above is off.' },
+      { key: 'videoUrl', label: 'Custom video URL', type: 'media', mediaKind: 'video', hint: 'Only used when the option above is off.' },
       { key: 'showForm', label: 'Show the contact form', type: 'bool' },
+      { key: 'ctaEnabled', label: 'Show a button over the video', type: 'bool' },
+      { key: 'ctaLabel', label: 'Button label', type: 'text', hint: 'e.g. Request a quote' },
+      {
+        key: 'ctaAction', label: 'Button action', type: 'select',
+        options: [
+          { value: 'link', label: 'Go to a page or URL' },
+          { value: 'whatsapp', label: 'Open WhatsApp' },
+          { value: 'call', label: 'Start a phone call' },
+          { value: 'email', label: 'Open an email' },
+          { value: 'form', label: 'Scroll to the contact form' },
+        ],
+      },
+      { key: 'ctaHref', label: 'Link target', type: 'text', hint: 'Only used for the "page or URL" action. e.g. /products' },
     ],
-    defaults: { headline: '', headline2: '', accent: '', useSiteVideo: true, videoUrl: '', showForm: true },
+    defaults: {
+      headline: '', headline2: '', accent: '', useSiteVideo: true, videoUrl: '',
+      showForm: true, ctaEnabled: false, ctaLabel: '', ctaAction: 'link', ctaHref: '/contact',
+    },
   },
   pagehero: {
     label: 'Page header',
@@ -119,18 +135,61 @@ export const BLOCK_SCHEMAS: Record<BlockType, BlockSchema> = {
   },
   gallery: {
     label: 'Image gallery',
-    description: 'A grid of images.',
+    description: 'A grid of photos, each with an optional title and description.',
     fields: [
       { key: 'title', label: 'Section heading', type: 'text' },
       {
-        key: 'images', label: 'Images', type: 'list',
+        key: 'images', label: 'Photos', type: 'list',
         itemFields: [
-          { key: 'url', label: 'Image', type: 'media', mediaKind: 'image' },
+          { key: 'url', label: 'Photo', type: 'media', mediaKind: 'image' },
+          { key: 'title', label: 'Title', type: 'text' },
+          { key: 'description', label: 'Description', type: 'textarea' },
           { key: 'alt', label: 'Alt text', type: 'text' },
         ],
       },
     ],
     defaults: { title: '', images: [] },
+  },
+  category_grid: {
+    label: 'Category / product grid',
+    description: 'Tiles with images — main categories, sub-categories or products.',
+    fields: [
+      { key: 'title', label: 'Section heading', type: 'text' },
+      { key: 'subtitle', label: 'Subtitle', type: 'text' },
+      {
+        key: 'source', label: 'Show', type: 'select',
+        options: [
+          { value: 'main', label: 'Main categories' },
+          { value: 'sub', label: 'Sub-categories' },
+          { value: 'products', label: 'Products' },
+        ],
+      },
+      { key: 'limit', label: 'Maximum tiles', type: 'number', hint: '0 means no limit.' },
+    ],
+    defaults: { title: '', subtitle: '', source: 'main', limit: 0 },
+  },
+  parallax: {
+    label: 'Category showcase (scroll effect)',
+    description: 'Main categories revealed one by one as you scroll. Used on the Products page.',
+    fields: [
+      { key: 'title', label: 'Section heading', type: 'text' },
+      { key: 'subtitle', label: 'Subtitle', type: 'text' },
+    ],
+    defaults: { title: '', subtitle: '' },
+  },
+  director: {
+    label: 'Message from the director',
+    description: 'A portrait alongside a signed message.',
+    fields: [
+      { key: 'eyebrow', label: 'Eyebrow', type: 'text' },
+      { key: 'title', label: 'Heading', type: 'text' },
+      { key: 'image', label: 'Photo', type: 'media', mediaKind: 'image' },
+      { key: 'name', label: 'Name', type: 'text' },
+      { key: 'role', label: 'Role', type: 'text', hint: 'e.g. Managing Director' },
+      { key: 'html', label: 'Message', type: 'html' },
+      { key: 'signature', label: 'Signature image', type: 'media', mediaKind: 'image' },
+    ],
+    defaults: { eyebrow: '', title: '', image: '', name: '', role: '', html: '', signature: '' },
   },
   cta: {
     label: 'Call to action',
@@ -185,6 +244,8 @@ export const BLOCK_SCHEMAS: Record<BlockType, BlockSchema> = {
 }
 
 export const BLOCK_ORDER: BlockType[] = [
-  'hero', 'pagehero', 'richtext', 'features', 'stats', 'timeline',
-  'product_grid', 'gallery', 'cta', 'contact', 'faq', 'logos',
+  'hero', 'pagehero', 'richtext', 'director',
+  'category_grid', 'parallax', 'product_grid',
+  'features', 'stats', 'timeline', 'gallery',
+  'cta', 'contact', 'faq', 'logos',
 ]

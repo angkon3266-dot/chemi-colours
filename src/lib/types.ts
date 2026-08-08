@@ -11,6 +11,9 @@ export type BlockType =
   | 'contact'
   | 'faq'
   | 'logos'
+  | 'category_grid'
+  | 'parallax'
+  | 'director'
 
 export interface Block {
   id?: number
@@ -49,6 +52,14 @@ export interface NavItem {
 export interface Settings {
   site_name?: string
   logo_text?: string
+  logo_url?: string
+  tagline?: string
+  whatsapp_number?: string
+  whatsapp_message?: string
+  call_number?: string
+  footer_address?: string
+  footer_extra?: { label: string; value: string }[]
+  nav_items?: NavItem[]
   hero_video_url?: string
   hero_poster_url?: string
   contact_email?: string
@@ -132,9 +143,32 @@ export interface Category {
   id: number
   slug: string
   name: string
+  summary?: string
   description?: string
+  parentId?: number | null
+  image?: string
+  productCount?: number
+  childCount?: number
+  children?: Category[]
+}
+
+/** Raw admin row (snake_case, straight from the database). */
+export interface AdminCategory {
+  id: number
+  slug: string
+  name: string
+  summary?: string
+  description?: string
+  parent_id?: number | null
+  image_id?: number | null
   sort_order?: number
-  product_count?: number
+}
+
+export interface CategoryView {
+  category: Category
+  subcategory: Category | null
+  children: Category[]
+  products: Product[]
 }
 
 export interface MediaItem {
@@ -152,6 +186,7 @@ export interface Lead {
   id: number
   name: string
   email: string
+  phone: string
   company: string
   message: string
   services: string[]

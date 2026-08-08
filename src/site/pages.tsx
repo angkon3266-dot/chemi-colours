@@ -6,6 +6,7 @@ import { useSite } from '../lib/site'
 import type { Page, Product } from '../lib/types'
 import { Blocks } from './Blocks'
 import ContactForm from './ContactForm'
+import ContactActions from './ContactActions'
 
 function useDocTitle(title?: string) {
   const { settings } = useSite()
@@ -90,6 +91,15 @@ export function ProductDetail() {
   const [product, setProduct] = useState<Product | null>(null)
   const [loading, setLoading] = useState(true)
   const [notFound, setNotFound] = useState(false)
+  const [enquirySignal, setEnquirySignal] = useState(0)
+
+  /** Opens the enquiry form and brings it into view. */
+  const openEnquiry = () => {
+    setEnquirySignal((n) => n + 1)
+    requestAnimationFrame(() =>
+      document.getElementById('enquiry')?.scrollIntoView({ behavior: 'smooth' })
+    )
+  }
 
   useEffect(() => {
     let cancelled = false
@@ -209,12 +219,17 @@ export function ProductDetail() {
               </div>
             )}
 
+            {/* Direct contact routes, so a buyer never has to hunt for a form. */}
+            <div className="mt-7">
+              <ContactActions subject={product.name} onEnquire={openEnquiry} />
+            </div>
+
             {product.specSheet && (
               <a
                 href={product.specSheet}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="mt-7 inline-flex items-center gap-2 bg-black text-white text-sm font-semibold px-5 py-3 rounded-2xl hover:bg-gray-800 transition-colors"
+                className="mt-4 inline-flex items-center gap-2 text-sm font-semibold text-gray-700 hover:text-black transition-colors"
               >
                 <FileText size={16} /> Download spec sheet
               </a>
@@ -245,7 +260,9 @@ export function ProductDetail() {
           </div>
         )}
 
-        <div className="mt-14 grid lg:grid-cols-2 gap-8 items-start">
+        {/* Collapsed by default: the buttons above are the primary route, and
+            the form should not dominate the page. */}
+        <div id="enquiry" className="mt-14 grid lg:grid-cols-2 gap-8 items-start scroll-mt-8">
           <div>
             <h2 className="text-2xl sm:text-3xl font-medium text-black">
               Enquire about {product.name}
@@ -253,8 +270,16 @@ export function ProductDetail() {
             <p className="mt-3 text-gray-500 leading-relaxed">
               Tell us your substrate and volume — we'll send pricing and a technical data sheet.
             </p>
+            <div className="mt-6">
+              <ContactActions subject={product.name} size="sm" />
+            </div>
           </div>
-          <ContactForm collapsible={false} defaultOpen />
+          <ContactForm
+            collapsible
+            defaultOpen={false}
+            subject={product.name}
+            openSignal={enquirySignal}
+          />
         </div>
       </div>
     </div>

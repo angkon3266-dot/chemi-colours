@@ -1,7 +1,16 @@
 import { useEffect, useState } from 'react'
-import { Plus, Trash2, X } from 'lucide-react'
+import { Plus, Trash2, X, ChevronUp, ChevronDown } from 'lucide-react'
 import { api } from '../lib/api'
-import type { FooterColumn, MediaItem, Settings } from '../lib/types'
+import type { FooterColumn, MediaItem, NavItem, Settings } from '../lib/types'
+
+/** Swaps two entries in a list; used by the menu and footer re-order buttons. */
+function move<T>(list: T[], i: number, dir: -1 | 1, commit: (next: T[]) => void) {
+  const j = i + dir
+  if (j < 0 || j >= list.length) return
+  const next = [...list]
+  ;[next[i], next[j]] = [next[j], next[i]]
+  commit(next)
+}
 import {
   Button, Card, Field, Input, Textarea, useSaveState, MediaLibraryModal,
 } from './ui'
@@ -11,6 +20,7 @@ export default function SettingsEditor() {
   const [loading, setLoading] = useState(true)
   const [pickingVideo, setPickingVideo] = useState(false)
   const [pickingPoster, setPickingPoster] = useState(false)
+  const [pickingLogo, setPickingLogo] = useState(false)
   const [serviceInput, setServiceInput] = useState('')
   const save = useSaveState()
 
@@ -41,6 +51,10 @@ export default function SettingsEditor() {
 
   const services: string[] = Array.isArray(s.form_services) ? s.form_services : []
   const columns: FooterColumn[] = Array.isArray(s.footer_columns) ? s.footer_columns : []
+  const navItems: NavItem[] = Array.isArray(s.nav_items) ? s.nav_items : []
+  const extras: { label: string; value: string }[] = Array.isArray(s.footer_extra)
+    ? s.footer_extra
+    : []
 
   const setColumn = (i: number, patch: Partial<FooterColumn>) =>
     set('footer_columns', columns.map((c, idx) => (idx === i ? { ...c, ...patch } : c)))
@@ -110,10 +124,70 @@ export default function SettingsEditor() {
       </Card>
 
       <Card className="mt-4">
-        <h2 className="text-base font-semibold text-black mb-4">Identity & contact</h2>
+        <h2 className="text-base font-semibold text-black mb-4">Logo & identity</h2>
+        <div className="flex flex-col gap-4">
+          <div className="flex flex-col sm:flex-row gap-5 sm:items-start">
+            <div className="flex flex-col gap-2">
+              <span className="text-sm font-medium text-black">Logo</span>
+              <div className="w-40 h-16 rounded-xl border border-gray-200 bg-white flex items-center justify-center overflow-hidden">
+                {s.logo_url ? (
+                  <img src={s.logo_url} alt="Logo" className="max-w-full max-h-full object-contain" />
+                ) : (
+                  <span className="text-xs text-gray-300">No logo</span>
+                )}
+              </div>
+              <div className="flex gap-2">
+                <Button type="button" variant="ghost" onClick={() => setPickingLogo(true)}>
+                  Choose
+                </Button>
+                {s.logo_url && (
+                  <Button type="button" variant="ghost" onClick={() => set('logo_url', '')}>
+                    Remove
+                  </Button>
+                )}
+              </div>
+            </div>
+            <div className="flex-1 grid gap-4">
+              <Field label="Site name" hint="Used when no logo image is set.">
+                <Input value={s.site_name || ''} onChange={(e) => set('site_name', e.target.value)} />
+              </Field>
+              <Field label="Tagline" hint="Short line shown under the logo in the footer.">
+                <Input
+                  value={s.tagline || ''}
+                  onChange={(e) => set('tagline', e.target.value)}
+                  placeholder="Dyestuff for dyeing factories"
+                />
+              </Field>
+            </div>
+          </div>
+        </div>
+      </Card>
+
+      <Card className="mt-4">
+        <h2 className="text-base font-semibold text-black mb-4">Contact & enquiry routes</h2>
+        <p className="text-sm text-gray-500 -mt-2 mb-4">
+          These power the WhatsApp, Call and Email buttons on product pages. Leave a field blank
+          to hide its button.
+        </p>
         <div className="grid sm:grid-cols-2 gap-4">
-          <Field label="Site name">
-            <Input value={s.site_name || ''} onChange={(e) => set('site_name', e.target.value)} />
+          <Field label="WhatsApp number" hint="Include the country code, e.g. 8801700000000">
+            <Input
+              value={s.whatsapp_number || ''}
+              onChange={(e) => set('whatsapp_number', e.target.value)}
+              placeholder="8801700000000"
+            />
+          </Field>
+          <Field label="WhatsApp opening message" hint="The product name is appended automatically.">
+            <Input
+              value={s.whatsapp_message || ''}
+              onChange={(e) => set('whatsapp_message', e.target.value)}
+            />
+          </Field>
+          <Field label="Call number" hint="Used by the Call button. Falls back to Phone below.">
+            <Input
+              value={s.call_number || ''}
+              onChange={(e) => set('call_number', e.target.value)}
+            />
           </Field>
           <Field label="Contact email" hint="Enquiries are emailed here.">
             <Input
@@ -122,13 +196,13 @@ export default function SettingsEditor() {
               onChange={(e) => set('contact_email', e.target.value)}
             />
           </Field>
-          <Field label="Phone">
+          <Field label="Phone (shown in footer)">
             <Input
               value={s.contact_phone || ''}
               onChange={(e) => set('contact_phone', e.target.value)}
             />
           </Field>
-          <Field label="Address">
+          <Field label="Address (footer, left)">
             <Input value={s.address || ''} onChange={(e) => set('address', e.target.value)} />
           </Field>
           <Field label="Header button label">
@@ -137,6 +211,68 @@ export default function SettingsEditor() {
           <Field label="Header button link">
             <Input value={s.cta_href || ''} onChange={(e) => set('cta_href', e.target.value)} />
           </Field>
+        </div>
+      </Card>
+
+      <Card className="mt-4">
+        <h2 className="text-base font-semibold text-black mb-4">Menu</h2>
+        <p className="text-sm text-gray-500 -mt-2 mb-4">
+          Leave this empty to build the menu automatically from your published pages. Add items
+          here to take full control, including links to categories or external sites.
+        </p>
+        <div className="flex flex-col gap-2">
+          {navItems.map((item, i) => (
+            <div key={i} className="flex gap-2 items-center">
+              <Input
+                value={item.label}
+                onChange={(e) =>
+                  set('nav_items', navItems.map((x, k) => (k === i ? { ...x, label: e.target.value } : x)))
+                }
+                placeholder="Label"
+              />
+              <Input
+                value={item.href}
+                onChange={(e) =>
+                  set('nav_items', navItems.map((x, k) => (k === i ? { ...x, href: e.target.value } : x)))
+                }
+                placeholder="/products"
+              />
+              <button
+                type="button"
+                onClick={() => move(navItems, i, -1, (v) => set('nav_items', v))}
+                className="w-9 h-9 shrink-0 rounded-lg text-gray-400 hover:text-black hover:bg-gray-100 flex items-center justify-center"
+                aria-label="Move up"
+              >
+                <ChevronUp size={15} />
+              </button>
+              <button
+                type="button"
+                onClick={() => move(navItems, i, 1, (v) => set('nav_items', v))}
+                className="w-9 h-9 shrink-0 rounded-lg text-gray-400 hover:text-black hover:bg-gray-100 flex items-center justify-center"
+                aria-label="Move down"
+              >
+                <ChevronDown size={15} />
+              </button>
+              <button
+                type="button"
+                onClick={() => set('nav_items', navItems.filter((_, k) => k !== i))}
+                className="w-9 h-9 shrink-0 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 flex items-center justify-center"
+                aria-label="Remove item"
+              >
+                <X size={15} />
+              </button>
+            </div>
+          ))}
+          <Button
+            type="button"
+            variant="ghost"
+            className="self-start"
+            onClick={() => set('nav_items', [...navItems, { label: '', href: '' }])}
+          >
+            <span className="inline-flex items-center gap-1.5">
+              <Plus size={15} /> Add menu item
+            </span>
+          </Button>
         </div>
       </Card>
 
@@ -263,6 +399,63 @@ export default function SettingsEditor() {
             />
           </Field>
 
+          <Field
+            label="Address (footer, right side)"
+            hint="Line breaks are preserved."
+          >
+            <Textarea
+              rows={3}
+              value={s.footer_address || ''}
+              onChange={(e) => set('footer_address', e.target.value)}
+              placeholder={'Plot 12, Industrial Area\nDhaka 1216, Bangladesh'}
+            />
+          </Field>
+
+          <div className="flex flex-col gap-2">
+            <span className="text-sm font-medium text-black">
+              Extra details (footer, right side)
+            </span>
+            <p className="text-xs text-gray-400 -mt-1">
+              Anything else worth listing — opening hours, trade licence, BIN number.
+            </p>
+            {extras.map((row, i) => (
+              <div key={i} className="flex gap-2">
+                <Input
+                  value={row.label}
+                  onChange={(e) =>
+                    set('footer_extra', extras.map((x, k) => (k === i ? { ...x, label: e.target.value } : x)))
+                  }
+                  placeholder="Label (optional)"
+                />
+                <Input
+                  value={row.value}
+                  onChange={(e) =>
+                    set('footer_extra', extras.map((x, k) => (k === i ? { ...x, value: e.target.value } : x)))
+                  }
+                  placeholder="Value"
+                />
+                <button
+                  type="button"
+                  onClick={() => set('footer_extra', extras.filter((_, k) => k !== i))}
+                  className="w-9 h-9 shrink-0 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 flex items-center justify-center"
+                  aria-label="Remove row"
+                >
+                  <X size={15} />
+                </button>
+              </div>
+            ))}
+            <Button
+              type="button"
+              variant="ghost"
+              className="self-start"
+              onClick={() => set('footer_extra', [...extras, { label: '', value: '' }])}
+            >
+              <span className="inline-flex items-center gap-1.5">
+                <Plus size={15} /> Add detail
+              </span>
+            </Button>
+          </div>
+
           <div className="flex flex-col gap-3">
             <span className="text-sm font-medium text-black">Link columns</span>
             {columns.map((col, i) => (
@@ -373,6 +566,16 @@ export default function SettingsEditor() {
           onPick={(m: MediaItem) => {
             set('hero_poster_url', m.url)
             setPickingPoster(false)
+          }}
+        />
+      )}
+      {pickingLogo && (
+        <MediaLibraryModal
+          kind="image"
+          onClose={() => setPickingLogo(false)}
+          onPick={(m: MediaItem) => {
+            set('logo_url', m.url)
+            setPickingLogo(false)
           }}
         />
       )}

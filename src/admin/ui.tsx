@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
-import { X, Upload, Link2, Trash2, Check } from 'lucide-react'
+import { X, Upload, Link2, Trash2, Check, FileText } from 'lucide-react'
 import { api } from '../lib/api'
 import type { MediaItem } from '../lib/types'
 
@@ -175,6 +175,39 @@ export function useSaveState() {
   return { state, setState, saved, failed, node }
 }
 
+/**
+ * Preview for a media item. Videos render a real frame by seeking a fraction
+ * of a second in — `#t=0.1` makes the browser paint that frame as the poster,
+ * so the library shows what each clip actually looks like.
+ */
+export function MediaThumb({ item, className = '' }: { item: MediaItem; className?: string }) {
+  if (item.kind === 'image') {
+    return <img src={item.url} alt={item.alt} className={`w-full h-full object-cover ${className}`} />
+  }
+  if (item.kind === 'video') {
+    return (
+      <video
+        src={`${item.url}#t=0.1`}
+        muted
+        playsInline
+        preload="metadata"
+        onMouseEnter={(e) => void e.currentTarget.play().catch(() => {})}
+        onMouseLeave={(e) => {
+          e.currentTarget.pause()
+          e.currentTarget.currentTime = 0.1
+        }}
+        className={`w-full h-full object-cover bg-black ${className}`}
+      />
+    )
+  }
+  return (
+    <div className="flex flex-col items-center justify-center gap-1 text-gray-400">
+      <FileText size={20} />
+      <span className="text-[10px] font-semibold uppercase">PDF</span>
+    </div>
+  )
+}
+
 /* ------------------------------------------------------------ media picker */
 
 export function MediaPicker({
@@ -195,15 +228,14 @@ export function MediaPicker({
     <div className="flex flex-col gap-2">
       <span className="text-sm font-medium text-black">{label}</span>
       <div className="flex items-center gap-3">
-        <div className="w-20 h-16 rounded-xl bg-gray-50 border border-gray-200 overflow-hidden flex items-center justify-center shrink-0">
+        <div className="w-24 h-16 rounded-xl bg-gray-50 border border-gray-200 overflow-hidden flex items-center justify-center shrink-0">
           {valueUrl ? (
-            kind === 'image' ? (
-              <img src={valueUrl} alt="" className="w-full h-full object-cover" />
-            ) : (
-              <span className="text-[10px] text-gray-500 px-1 text-center break-all">
-                {kind === 'video' ? 'Video' : 'PDF'}
-              </span>
-            )
+            <MediaThumb
+              item={{
+                id: 0, kind, url: valueUrl, name: '', mime: '',
+                size: 0, external: false, alt: '',
+              }}
+            />
           ) : (
             <span className="text-xs text-gray-300">None</span>
           )}
@@ -368,11 +400,7 @@ export function MediaLibraryModal({
                   className="block w-full text-left"
                 >
                   <div className="aspect-[4/3] bg-gray-50 flex items-center justify-center overflow-hidden">
-                    {m.kind === 'image' ? (
-                      <img src={m.url} alt="" className="w-full h-full object-cover" />
-                    ) : (
-                      <span className="text-xs text-gray-500 uppercase">{m.kind}</span>
-                    )}
+                    <MediaThumb item={m} />
                   </div>
                   <p className="text-[11px] text-gray-600 px-2 py-1.5 truncate">{m.name}</p>
                 </button>

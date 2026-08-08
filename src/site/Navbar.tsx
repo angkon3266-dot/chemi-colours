@@ -3,7 +3,11 @@ import { Link, useLocation } from 'react-router-dom'
 import { Menu, X } from 'lucide-react'
 import { useSite } from '../lib/site'
 
-function Logo() {
+/** Uploaded logo when one is set, otherwise the built-in mark. */
+function Logo({ url, name }: { url?: string; name?: string }) {
+  if (url) {
+    return <img src={url} alt={name || 'Logo'} className="h-8 w-auto max-w-[160px] object-contain shrink-0" />
+  }
   return (
     <svg viewBox="0 0 256 256" className="w-8 h-8 shrink-0" aria-hidden="true">
       <path d="M 256 256 L 128 256 L 0 128 L 128 128 Z" fill="black" />
@@ -48,7 +52,7 @@ export default function Navbar({ variant = 'overlay' }: { variant?: 'overlay' | 
         className={`${shell} rounded-2xl pl-3 sm:pl-4 pr-2 py-2 w-full sm:w-auto sm:inline-flex flex items-center gap-3 sm:gap-6`}
       >
         <Link to="/" aria-label={settings.site_name || 'Home'} className="shrink-0">
-          <Logo />
+          <Logo url={settings.logo_url} name={settings.site_name} />
         </Link>
 
         <div className="hidden sm:flex items-center gap-6">

@@ -4,20 +4,25 @@ declare(strict_types=1);
 /** Admin CRUD. Every route requires a session; every write requires CSRF. */
 
 const SETTING_KEYS = [
-    'site_name', 'logo_text', 'hero_video_url', 'hero_poster_url',
+    'site_name', 'logo_text', 'logo_url', 'tagline',
+    'hero_video_url', 'hero_poster_url',
     'contact_email', 'contact_phone', 'address',
+    'whatsapp_number', 'whatsapp_message', 'call_number',
     'cta_label', 'cta_href',
     'footer_tagline', 'footer_note', 'footer_columns',
+    'footer_address', 'footer_extra',
+    'nav_items',
     'social_twitter', 'social_facebook', 'social_instagram', 'social_linkedin',
     'form_services', 'form_heading', 'form_intro',
     'form_success_title', 'form_success_text',
 ];
 
-const JSON_SETTING_KEYS = ['form_services', 'footer_columns'];
+const JSON_SETTING_KEYS = ['form_services', 'footer_columns', 'footer_extra', 'nav_items'];
 
 const BLOCK_TYPES = [
     'hero', 'pagehero', 'richtext', 'features', 'stats', 'timeline',
     'product_grid', 'gallery', 'cta', 'contact', 'faq', 'logos',
+    'category_grid', 'parallax', 'director',
 ];
 
 function handle_admin(string $method, array $seg): void
@@ -332,15 +337,28 @@ function admin_categories(string $method, array $seg): void
     $id = isset($seg[0]) && ctype_digit($seg[0]) ? (int) $seg[0] : 0;
 
     if ($method === 'GET') {
-        json_out(db()->query('SELECT * FROM categories ORDER BY sort_order ASC, name ASC')->fetchAll());
+        json_out(db()->query(
+            'SELECT * FROM categories ORDER BY COALESCE(parent_id, id), parent_id IS NOT NULL, sort_order ASC, name ASC'
+        )->fetchAll());
     }
 
     if ($method === 'POST') {
         $b = body();
         $name = plain(field($b, 'name', true), 150);
         $slug = unique_slug('categories', slugify($name, 'category'));
-        $stmt = db()->prepare('INSERT INTO categories (slug, name, description, sort_order) VALUES (?,?,?,?)');
-        $stmt->execute([$slug, $name, plain(field($b, 'description'), 1000), int_field($b, 'sort_order')]);
+        $stmt = db()->prepare(
+            'INSERT INTO categories (slug, name, description, summary, sort_order, parent_id, image_id)
+             VALUES (?,?,?,?,?,?,?)'
+        );
+        $stmt->execute([
+            $slug,
+            $name,
+            plain(field($b, 'description'), 1000),
+            plain(field($b, 'summary'), 400),
+            int_field($b, 'sort_order'),
+            valid_parent($b, 0),
+            ($iid = int_field($b, 'image_id')) > 0 ? $iid : null,
+        ]);
         json_out(['id' => (int) db()->lastInsertId()], 201);
     }
 
@@ -348,19 +366,69 @@ function admin_categories(string $method, array $seg): void
         $b = body();
         $name = plain(field($b, 'name', true), 150);
         $slug = unique_slug('categories', slugify(field($b, 'slug') ?: $name, 'category'), $id);
-        $stmt = db()->prepare('UPDATE categories SET slug=?, name=?, description=?, sort_order=? WHERE id=?');
-        $stmt->execute([$slug, $name, plain(field($b, 'description'), 1000), int_field($b, 'sort_order'), $id]);
+        $stmt = db()->prepare(
+            'UPDATE categories SET slug=?, name=?, description=?, summary=?, sort_order=?,
+                    parent_id=?, image_id=? WHERE id=?'
+        );
+        $stmt->execute([
+            $slug,
+            $name,
+            plain(field($b, 'description'), 1000),
+            plain(field($b, 'summary'), 400),
+            int_field($b, 'sort_order'),
+            valid_parent($b, $id),
+            ($iid = int_field($b, 'image_id')) > 0 ? $iid : null,
+            $id,
+        ]);
         json_out(['ok' => true]);
     }
 
     if ($method === 'DELETE' && $id) {
-        // Products keep existing but become uncategorised.
+        // Products keep existing but become uncategorised; sub-categories are
+        // promoted to top level rather than silently disappearing.
         db()->prepare('UPDATE products SET category_id = NULL WHERE category_id = ?')->execute([$id]);
+        db()->prepare('UPDATE categories SET parent_id = NULL WHERE parent_id = ?')->execute([$id]);
         db()->prepare('DELETE FROM categories WHERE id = ?')->execute([$id]);
         json_out(['ok' => true]);
     }
 
     throw new ApiError('Unknown categories endpoint.', 404);
+}
+
+/**
+ * Validates a requested parent category. The tree is deliberately two levels
+ * deep, so a parent must itself be top-level, and a category that already has
+ * children cannot be demoted into one.
+ */
+function valid_parent(array $b, int $selfId): ?int
+{
+    $parentId = int_field($b, 'parent_id');
+    if ($parentId <= 0) {
+        return null;
+    }
+    if ($selfId > 0 && $parentId === $selfId) {
+        throw new ApiError('A category cannot be its own parent.', 422);
+    }
+
+    $stmt = db()->prepare('SELECT parent_id FROM categories WHERE id = ? LIMIT 1');
+    $stmt->execute([$parentId]);
+    $row = $stmt->fetch();
+    if (!$row) {
+        throw new ApiError('That parent category does not exist.', 422);
+    }
+    if ($row['parent_id'] !== null) {
+        throw new ApiError('Categories can only be nested one level deep.', 422);
+    }
+
+    if ($selfId > 0) {
+        $kids = db()->prepare('SELECT COUNT(*) FROM categories WHERE parent_id = ?');
+        $kids->execute([$selfId]);
+        if ((int) $kids->fetchColumn() > 0) {
+            throw new ApiError('This category has sub-categories, so it cannot become one itself.', 422);
+        }
+    }
+
+    return $parentId;
 }
 
 // ------------------------------------------------------------------- media --
@@ -555,6 +623,7 @@ function admin_leads(string $method, array $seg): void
             'id'        => (int) $l['id'],
             'name'      => $l['name'],
             'email'     => $l['email'],
+            'phone'     => $l['phone'] ?? '',
             'company'   => $l['company'],
             'message'   => $l['message'],
             'services'  => decode_json_col($l['services']),

@@ -11,7 +11,7 @@ function all_settings(): array
         $out[$r['key']] = $r['value'];
     }
     // Fields stored as JSON are decoded so the client gets real arrays.
-    foreach (['form_services', 'footer_columns'] as $jsonKey) {
+    foreach (['form_services', 'footer_columns', 'footer_extra', 'nav_items'] as $jsonKey) {
         if (isset($out[$jsonKey])) {
             $decoded = json_decode((string) $out[$jsonKey], true);
             $out[$jsonKey] = is_array($decoded) ? $decoded : [];
@@ -80,6 +80,71 @@ function shape_product(array $p, array $mediaById = []): array
     ];
 }
 
+/** One category row shaped for the client, including its image and counts. */
+function shape_category(array $c): array
+{
+    $img = null;
+    if (!empty($c['image_id'])) {
+        $m = media_map([$c['image_id']]);
+        $img = $m[(int) $c['image_id']] ?? null;
+    }
+    return [
+        'id'           => (int) $c['id'],
+        'slug'         => $c['slug'],
+        'name'         => $c['name'],
+        'summary'      => $c['summary'] ?? '',
+        'description'  => $c['description'] ?? '',
+        'parentId'     => isset($c['parent_id']) && $c['parent_id'] !== null ? (int) $c['parent_id'] : null,
+        'image'        => media_url($img),
+        'productCount' => (int) ($c['product_count'] ?? 0),
+        'childCount'   => (int) ($c['child_count'] ?? 0),
+    ];
+}
+
+function find_category(string $slug): ?array
+{
+    $stmt = db()->prepare('SELECT * FROM categories WHERE slug = ? LIMIT 1');
+    $stmt->execute([$slug]);
+    return $stmt->fetch() ?: null;
+}
+
+/**
+ * Product count for a category includes anything filed under its
+ * sub-categories, so a main category never looks empty.
+ */
+const CATEGORY_COUNT_SQL = '(SELECT COUNT(*) FROM products p
+      WHERE p.status = "published"
+        AND (p.category_id = c.id
+             OR p.category_id IN (SELECT c2.id FROM categories c2 WHERE c2.parent_id = c.id))
+    ) AS product_count,
+    (SELECT COUNT(*) FROM categories c3 WHERE c3.parent_id = c.id) AS child_count';
+
+function category_tree(): array
+{
+    $rows = db()->query(
+        'SELECT c.*, ' . CATEGORY_COUNT_SQL . '
+         FROM categories c WHERE c.parent_id IS NULL
+         ORDER BY c.sort_order ASC, c.name ASC'
+    )->fetchAll();
+
+    return array_map(static function ($row) {
+        $cat = shape_category($row);
+        $cat['children'] = array_map('shape_category', child_categories((int) $row['id']));
+        return $cat;
+    }, $rows);
+}
+
+function child_categories(int $parentId): array
+{
+    $stmt = db()->prepare(
+        'SELECT c.*, ' . CATEGORY_COUNT_SQL . '
+         FROM categories c WHERE c.parent_id = ?
+         ORDER BY c.sort_order ASC, c.name ASC'
+    );
+    $stmt->execute([$parentId]);
+    return $stmt->fetchAll();
+}
+
 function load_products(bool $publishedOnly = true, array $opts = []): array
 {
     $where = [];
@@ -90,6 +155,17 @@ function load_products(bool $publishedOnly = true, array $opts = []): array
     if (!empty($opts['category'])) {
         $where[] = 'c.slug = ?';
         $args[] = $opts['category'];
+    }
+    if (!empty($opts['categoryId'])) {
+        if (!empty($opts['includeChildren'])) {
+            $where[] = '(p.category_id = ? OR p.category_id IN
+                         (SELECT c2.id FROM categories c2 WHERE c2.parent_id = ?))';
+            $args[] = $opts['categoryId'];
+            $args[] = $opts['categoryId'];
+        } else {
+            $where[] = 'p.category_id = ?';
+            $args[] = $opts['categoryId'];
+        }
     }
     if (!empty($opts['featured'])) {
         $where[] = 'p.featured = 1';
@@ -209,12 +285,40 @@ function handle_public(string $method, array $seg): void
     }
 
     if ($method === 'GET' && $head === 'categories') {
-        json_out(db()->query(
-            'SELECT c.id, c.slug, c.name, c.description,
-                    (SELECT COUNT(*) FROM products p
-                      WHERE p.category_id = c.id AND p.status = "published") AS product_count
-             FROM categories c ORDER BY c.sort_order ASC, c.name ASC'
-        )->fetchAll());
+        json_out(category_tree());
+    }
+
+    // GET /api/category/{slug}[/{subSlug}] — browse view for one category.
+    if ($method === 'GET' && $head === 'category') {
+        $slug = $seg[1] ?? '';
+        $subSlug = $seg[2] ?? '';
+
+        $cat = find_category($slug);
+        if (!$cat) {
+            throw new ApiError('Category not found.', 404);
+        }
+
+        $sub = null;
+        if ($subSlug !== '') {
+            $sub = find_category($subSlug);
+            if (!$sub || (int) $sub['parent_id'] !== (int) $cat['id']) {
+                throw new ApiError('Sub-category not found.', 404);
+            }
+        }
+
+        $children = $sub ? [] : child_categories((int) $cat['id']);
+
+        // Landing on a main category with sub-categories shows those; otherwise
+        // (or once a sub-category is chosen) it shows products.
+        $target = $sub ?: $cat;
+        $products = load_products(true, ['categoryId' => (int) $target['id'], 'includeChildren' => !$sub]);
+
+        json_out([
+            'category'    => shape_category($cat),
+            'subcategory' => $sub ? shape_category($sub) : null,
+            'children'    => array_map('shape_category', $children),
+            'products'    => $products,
+        ]);
     }
 
     // POST /api/leads — the public contact form.
@@ -237,12 +341,13 @@ function handle_public(string $method, array $seg): void
         $services = array_slice(array_map(static fn($s) => plain((string) $s, 80), $services), 0, 20);
 
         $stmt = db()->prepare(
-            'INSERT INTO leads (name, email, company, message, services, ip, user_agent)
-             VALUES (?, ?, ?, ?, ?, ?, ?)'
+            'INSERT INTO leads (name, email, phone, company, message, services, ip, user_agent)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
         );
         $stmt->execute([
             plain(field($b, 'name'), 200),
             mb_substr($email, 0, 200),
+            plain(field($b, 'phone'), 40),
             plain(field($b, 'company'), 200),
             plain(field($b, 'message'), 5000),
             json_col($services),
@@ -250,7 +355,12 @@ function handle_public(string $method, array $seg): void
             mb_substr((string) ($_SERVER['HTTP_USER_AGENT'] ?? ''), 0, 400),
         ]);
 
-        notify_lead_by_email($email, plain(field($b, 'name'), 200), plain(field($b, 'message'), 5000));
+        notify_lead_by_email(
+            $email,
+            plain(field($b, 'name'), 200),
+            plain(field($b, 'message'), 5000),
+            plain(field($b, 'phone'), 40)
+        );
         json_out(['ok' => true], 201);
     }
 }
@@ -263,7 +373,7 @@ function home_slug(): string
 }
 
 /** Best-effort notification; a mail failure must never break the form. */
-function notify_lead_by_email(string $fromEmail, string $name, string $message): void
+function notify_lead_by_email(string $fromEmail, string $name, string $message, string $phone = ''): void
 {
     $to = (string) (db()->query("SELECT `value` FROM settings WHERE `key` = 'contact_email'")
         ->fetchColumn() ?: '');
@@ -271,7 +381,9 @@ function notify_lead_by_email(string $fromEmail, string $name, string $message):
         return;
     }
     $subject = 'New enquiry from ' . ($name !== '' ? $name : 'the website');
-    $bodyText = "Name: $name\nEmail: $fromEmail\n\n$message\n";
+    $bodyText = "Name: $name\nEmail: $fromEmail\n"
+        . ($phone !== '' ? "Phone: $phone\n" : '')
+        . "\n$message\n";
     $headers = 'From: no-reply@' . ($_SERVER['HTTP_HOST'] ?? 'localhost') . "\r\n"
         . 'Reply-To: ' . $fromEmail . "\r\n"
         . 'Content-Type: text/plain; charset=utf-8';
