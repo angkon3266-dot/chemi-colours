@@ -1,0 +1,4 @@
+deployment:
+  tasks:
+    - export DEPLOYPATH=/home/noycuuae/chemicolours.noychoy/
+    - /bin/cp -R * $DEPLOYPATH
