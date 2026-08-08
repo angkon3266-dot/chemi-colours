@@ -7,3 +7,79 @@
 * {
   font-family: 'Inter', sans-serif;
 }
+
+/* Tailwind's reset strips list and heading styles; rich text from the CMS
+   needs them back. Scoped so it never leaks into the app chrome. */
+.prose-chemi h2 {
+  font-size: 1.35rem;
+  font-weight: 600;
+  color: #000;
+  margin: 1.5rem 0 0.5rem;
+}
+.prose-chemi h3 {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #000;
+  margin: 1.25rem 0 0.4rem;
+}
+.prose-chemi h4 {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #000;
+  margin: 1rem 0 0.35rem;
+}
+.prose-chemi p + p {
+  margin-top: 0.85rem;
+}
+.prose-chemi ul {
+  list-style: disc;
+  padding-left: 1.25rem;
+  margin: 0.75rem 0;
+}
+.prose-chemi ol {
+  list-style: decimal;
+  padding-left: 1.25rem;
+  margin: 0.75rem 0;
+}
+.prose-chemi li {
+  margin: 0.3rem 0;
+}
+.prose-chemi a {
+  color: #2563eb;
+  text-decoration: underline;
+}
+.prose-chemi a:hover {
+  color: #1d4ed8;
+}
+.prose-chemi strong {
+  font-weight: 600;
+  color: #111;
+}
+.prose-chemi blockquote {
+  border-left: 3px solid #e5e7eb;
+  padding-left: 1rem;
+  color: #6b7280;
+  margin: 1rem 0;
+}
+
+/* Contact-form expand. Height is not animated (the content height is unknown
+   and grid-fr collapsed inside the hero's flex layout); a short fade + slide
+   reads as motion without risking a zero-height panel. */
+@keyframes collapse-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.collapse-in {
+  animation: collapse-in 220ms ease-out;
+}
+@media (prefers-reduced-motion: reduce) {
+  .collapse-in {
+    animation: none;
+  }
+}

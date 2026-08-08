@@ -1,0 +1,463 @@
+import { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
+import { api } from '../lib/api'
+import { useSite } from '../lib/site'
+import type { Block, Category, Product } from '../lib/types'
+import ContactForm from './ContactForm'
+import ProductCard from './ProductCard'
+
+const SECTION = 'py-12 sm:py-16 px-4 sm:px-6'
+const INNER = 'max-w-6xl mx-auto'
+
+/* ------------------------------------------------------------------ hero -- */
+function Hero({ data }: { data: Record<string, any> }) {
+  const { settings } = useSite()
+  const videoUrl = data.useSiteVideo === false ? data.videoUrl : settings.hero_video_url
+  const poster = settings.hero_poster_url || undefined
+
+  return (
+    // Viewport height is a MINIMUM, not a lock: with the contact form expanded
+    // a hard height squashed the card to nothing on short screens.
+    <section className="relative rounded-2xl sm:rounded-3xl overflow-hidden min-h-[calc(100vh-24px)] sm:min-h-[calc(100vh-32px)] md:min-h-[calc(100vh-48px)]">
+      {videoUrl ? (
+        <video
+          key={videoUrl}
+          src={videoUrl}
+          poster={poster}
+          autoPlay
+          muted
+          loop
+          playsInline
+          className="absolute inset-0 w-full h-full object-cover"
+        />
+      ) : (
+        <div className="absolute inset-0 bg-gradient-to-br from-gray-800 to-black" />
+      )}
+      <div className="absolute inset-0 bg-black/20" />
+
+      <div className="relative z-10 flex flex-col min-h-[calc(100vh-24px)] sm:min-h-[calc(100vh-32px)] md:min-h-[calc(100vh-48px)] p-4 sm:p-6 md:p-8 gap-6">
+        <div className="flex-1 min-h-[5rem]" />
+
+        <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-6">
+          <p className="text-white text-3xl sm:text-4xl xl:text-5xl font-medium leading-tight drop-shadow-lg lg:max-w-lg xl:max-w-2xl shrink-0">
+            {data.headline}
+            <br />
+            {data.headline2}{' '}
+            {data.accent && (
+              <span
+                style={{
+                  fontFamily: "'Instrument Serif', serif",
+                  fontStyle: 'italic',
+                  fontWeight: 400,
+                }}
+              >
+                {data.accent}
+              </span>
+            )}
+          </p>
+
+          {data.showForm !== false && (
+            <div className="w-full lg:w-[min(480px,45%)] shrink-0">
+              <ContactForm collapsible />
+            </div>
+          )}
+        </div>
+      </div>
+    </section>
+  )
+}
+
+/* -------------------------------------------------------------- pagehero -- */
+function PageHero({ data }: { data: Record<string, any> }) {
+  return (
+    <section className="px-4 sm:px-6 pt-8 pb-6 sm:pt-14 sm:pb-10">
+      <div className={INNER}>
+        {data.eyebrow && (
+          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-gray-400 mb-3">
+            {data.eyebrow}
+          </p>
+        )}
+        <h1 className="text-3xl sm:text-5xl font-medium text-black leading-tight max-w-3xl">
+          {data.title}
+        </h1>
+        {data.subtitle && (
+          <p className="mt-4 text-base sm:text-lg text-gray-500 leading-relaxed max-w-2xl">
+            {data.subtitle}
+          </p>
+        )}
+      </div>
+    </section>
+  )
+}
+
+/* -------------------------------------------------------------- richtext -- */
+function RichText({ data }: { data: Record<string, any> }) {
+  return (
+    <section className={SECTION}>
+      <div className={`${INNER} max-w-3xl`}>
+        {data.eyebrow && (
+          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-gray-400 mb-3">
+            {data.eyebrow}
+          </p>
+        )}
+        {data.title && (
+          <h2 className="text-2xl sm:text-3xl font-medium text-black mb-5 leading-snug">
+            {data.title}
+          </h2>
+        )}
+        {data.html && (
+          <div
+            className="prose-chemi text-gray-600 leading-relaxed space-y-4"
+            dangerouslySetInnerHTML={{ __html: data.html }}
+          />
+        )}
+      </div>
+    </section>
+  )
+}
+
+/* -------------------------------------------------------------- features -- */
+function Features({ data }: { data: Record<string, any> }) {
+  const items: any[] = Array.isArray(data.items) ? data.items : []
+  return (
+    <section className={SECTION}>
+      <div className={INNER}>
+        {data.title && (
+          <h2 className="text-2xl sm:text-3xl font-medium text-black mb-8">{data.title}</h2>
+        )}
+        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
+          {items.map((it, i) => (
+            <div
+              key={i}
+              className="rounded-2xl border border-gray-200 p-5 sm:p-6 hover:border-gray-400 transition-colors"
+            >
+              <h3 className="text-base font-semibold text-black mb-2">{it.title}</h3>
+              <p className="text-sm text-gray-500 leading-relaxed">{it.text}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  )
+}
+
+/* ----------------------------------------------------------------- stats -- */
+function Stats({ data }: { data: Record<string, any> }) {
+  const items: any[] = Array.isArray(data.items) ? data.items : []
+  return (
+    <section className={SECTION}>
+      <div className={INNER}>
+        {data.title && (
+          <h2 className="text-2xl sm:text-3xl font-medium text-black mb-8">{data.title}</h2>
+        )}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
+          {items.map((it, i) => (
+            <div key={i} className="rounded-2xl bg-gray-50 border border-gray-100 p-5 sm:p-6">
+              <div className="text-2xl sm:text-4xl font-medium text-black">{it.value}</div>
+              <div className="mt-1.5 text-sm text-gray-500 leading-snug">{it.label}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  )
+}
+
+/* -------------------------------------------------------------- timeline -- */
+function Timeline({ data }: { data: Record<string, any> }) {
+  const items: any[] = Array.isArray(data.items) ? data.items : []
+  return (
+    <section className={SECTION}>
+      <div className={`${INNER} max-w-3xl`}>
+        {data.title && (
+          <h2 className="text-2xl sm:text-3xl font-medium text-black mb-8">{data.title}</h2>
+        )}
+        <div className="flex flex-col">
+          {items.map((it, i) => (
+            <div key={i} className="flex gap-5 sm:gap-8">
+              <div className="flex flex-col items-center">
+                <div className="w-2.5 h-2.5 rounded-full bg-black mt-2 shrink-0" />
+                {i < items.length - 1 && <div className="w-px flex-1 bg-gray-200 my-1" />}
+              </div>
+              <div className="pb-8">
+                <div className="text-sm font-semibold text-gray-400">{it.year}</div>
+                <h3 className="text-base font-semibold text-black mt-1">{it.title}</h3>
+                <p className="text-sm text-gray-500 leading-relaxed mt-1">{it.text}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  )
+}
+
+/* ---------------------------------------------------------- product grid -- */
+function ProductGrid({ data }: { data: Record<string, any> }) {
+  const [products, setProducts] = useState<Product[]>([])
+  const [categories, setCategories] = useState<Category[]>([])
+  const [active, setActive] = useState('')
+  const [loading, setLoading] = useState(true)
+
+  const showFilter = !!data.showFilter
+
+  useEffect(() => {
+    const params = new URLSearchParams()
+    if (data.mode === 'featured') params.set('featured', '1')
+    if (active) params.set('category', active)
+    if (data.limit) params.set('limit', String(data.limit))
+
+    setLoading(true)
+    api
+      .get<Product[]>(`/products?${params.toString()}`)
+      .then(setProducts)
+      .catch(() => setProducts([]))
+      .finally(() => setLoading(false))
+  }, [data.mode, data.limit, active])
+
+  useEffect(() => {
+    if (!showFilter) return
+    api.get<Category[]>('/categories').then(setCategories).catch(() => setCategories([]))
+  }, [showFilter])
+
+  return (
+    <section className={SECTION}>
+      <div className={INNER}>
+        {(data.title || data.subtitle) && (
+          <div className="mb-8">
+            {data.title && (
+              <h2 className="text-2xl sm:text-3xl font-medium text-black">{data.title}</h2>
+            )}
+            {data.subtitle && <p className="mt-2 text-gray-500">{data.subtitle}</p>}
+          </div>
+        )}
+
+        {showFilter && categories.length > 0 && (
+          <div className="flex flex-wrap gap-1.5 mb-7">
+            <button
+              type="button"
+              onClick={() => setActive('')}
+              className={`text-xs font-medium px-3 py-2 rounded-lg border transition-all ${
+                active === ''
+                  ? 'bg-gray-100 text-black border-black'
+                  : 'bg-white text-gray-700 border-gray-200 hover:border-gray-400'
+              }`}
+            >
+              All
+            </button>
+            {categories.map((c) => (
+              <button
+                key={c.id}
+                type="button"
+                onClick={() => setActive(c.slug)}
+                className={`text-xs font-medium px-3 py-2 rounded-lg border transition-all ${
+                  active === c.slug
+                    ? 'bg-gray-100 text-black border-black'
+                    : 'bg-white text-gray-700 border-gray-200 hover:border-gray-400'
+                }`}
+              >
+                {c.name}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {loading ? (
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
+            {[0, 1, 2].map((i) => (
+              <div key={i} className="rounded-2xl border border-gray-200 overflow-hidden">
+                <div className="aspect-[4/3] bg-gray-100 animate-pulse" />
+                <div className="p-4 space-y-2">
+                  <div className="h-3 w-20 bg-gray-100 rounded animate-pulse" />
+                  <div className="h-4 w-3/4 bg-gray-100 rounded animate-pulse" />
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : products.length === 0 ? (
+          <p className="text-gray-500 text-sm">
+            No products to show yet. Add them from the admin panel.
+          </p>
+        ) : (
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
+            {products.map((p) => (
+              <ProductCard key={p.id} product={p} />
+            ))}
+          </div>
+        )}
+      </div>
+    </section>
+  )
+}
+
+/* --------------------------------------------------------------- gallery -- */
+function Gallery({ data }: { data: Record<string, any> }) {
+  const images: any[] = Array.isArray(data.images) ? data.images : []
+  return (
+    <section className={SECTION}>
+      <div className={INNER}>
+        {data.title && (
+          <h2 className="text-2xl sm:text-3xl font-medium text-black mb-8">{data.title}</h2>
+        )}
+        <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+          {images.map((img, i) => (
+            <div key={i} className="rounded-2xl overflow-hidden bg-gray-50 aspect-[4/3]">
+              <img
+                src={typeof img === 'string' ? img : img.url}
+                alt={typeof img === 'string' ? '' : img.alt || ''}
+                loading="lazy"
+                className="w-full h-full object-cover hover:scale-[1.03] transition-transform duration-500"
+              />
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  )
+}
+
+/* ------------------------------------------------------------------- cta -- */
+function Cta({ data }: { data: Record<string, any> }) {
+  return (
+    <section className="px-4 sm:px-6 py-8 sm:py-12">
+      <div
+        className={`${INNER} rounded-2xl sm:rounded-3xl bg-black text-white px-6 sm:px-10 py-10 sm:py-14 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6`}
+      >
+        <div className="max-w-xl">
+          <h2 className="text-2xl sm:text-3xl font-medium leading-snug">{data.title}</h2>
+          {data.text && <p className="mt-3 text-gray-300 leading-relaxed">{data.text}</p>}
+        </div>
+        {data.buttonText && (
+          <Link
+            to={data.buttonHref || '/contact'}
+            className="shrink-0 bg-white text-black text-sm font-semibold px-6 py-3.5 rounded-2xl hover:bg-gray-200 transition-colors text-center"
+          >
+            {data.buttonText}
+          </Link>
+        )}
+      </div>
+    </section>
+  )
+}
+
+/* --------------------------------------------------------------- contact -- */
+function ContactBlock({ data }: { data: Record<string, any> }) {
+  return (
+    <section className={SECTION}>
+      <div className={`${INNER} grid lg:grid-cols-2 gap-8 items-start`}>
+        <div>
+          {data.title && (
+            <h2 className="text-2xl sm:text-3xl font-medium text-black">{data.title}</h2>
+          )}
+          {data.text && <p className="mt-3 text-gray-500 leading-relaxed">{data.text}</p>}
+        </div>
+        <ContactForm collapsible={false} defaultOpen />
+      </div>
+    </section>
+  )
+}
+
+/* ------------------------------------------------------------------- faq -- */
+function Faq({ data }: { data: Record<string, any> }) {
+  const items: any[] = Array.isArray(data.items) ? data.items : []
+  const [open, setOpen] = useState<number | null>(0)
+  return (
+    <section className={SECTION}>
+      <div className={`${INNER} max-w-3xl`}>
+        {data.title && (
+          <h2 className="text-2xl sm:text-3xl font-medium text-black mb-8">{data.title}</h2>
+        )}
+        <div className="flex flex-col gap-2">
+          {items.map((it, i) => (
+            <div key={i} className="rounded-2xl border border-gray-200 overflow-hidden">
+              <button
+                type="button"
+                onClick={() => setOpen(open === i ? null : i)}
+                aria-expanded={open === i}
+                className="w-full text-left px-5 py-4 flex items-center justify-between gap-4 hover:bg-gray-50 transition-colors"
+              >
+                <span className="text-sm sm:text-base font-medium text-black">{it.q}</span>
+                <span className="text-gray-400 text-xl leading-none shrink-0">
+                  {open === i ? '−' : '+'}
+                </span>
+              </button>
+              {open === i && (
+                <div className="px-5 pb-4 text-sm text-gray-500 leading-relaxed">{it.a}</div>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  )
+}
+
+/* ----------------------------------------------------------------- logos -- */
+function Logos({ data }: { data: Record<string, any> }) {
+  const items: any[] = Array.isArray(data.items) ? data.items : []
+  return (
+    <section className="px-4 sm:px-6 py-10">
+      <div className={INNER}>
+        {data.title && (
+          <p className="text-center text-xs font-semibold uppercase tracking-[0.14em] text-gray-400 mb-6">
+            {data.title}
+          </p>
+        )}
+        <div className="flex flex-wrap items-center justify-center gap-8 sm:gap-12 opacity-60">
+          {items.map((it, i) => (
+            <img
+              key={i}
+              src={typeof it === 'string' ? it : it.url}
+              alt={typeof it === 'string' ? '' : it.alt || ''}
+              loading="lazy"
+              className="h-7 sm:h-9 object-contain grayscale"
+            />
+          ))}
+        </div>
+      </div>
+    </section>
+  )
+}
+
+/* -------------------------------------------------------------- renderer -- */
+export function BlockRenderer({ block }: { block: Block }) {
+  const d = block.data || {}
+  switch (block.type) {
+    case 'hero':
+      return <Hero data={d} />
+    case 'pagehero':
+      return <PageHero data={d} />
+    case 'richtext':
+      return <RichText data={d} />
+    case 'features':
+      return <Features data={d} />
+    case 'stats':
+      return <Stats data={d} />
+    case 'timeline':
+      return <Timeline data={d} />
+    case 'product_grid':
+      return <ProductGrid data={d} />
+    case 'gallery':
+      return <Gallery data={d} />
+    case 'cta':
+      return <Cta data={d} />
+    case 'contact':
+      return <ContactBlock data={d} />
+    case 'faq':
+      return <Faq data={d} />
+    case 'logos':
+      return <Logos data={d} />
+    default:
+      return null
+  }
+}
+
+export function Blocks({ blocks }: { blocks: Block[] }) {
+  return (
+    <>
+      {blocks.map((b, i) => (
+        <BlockRenderer key={b.id ?? i} block={b} />
+      ))}
+    </>
+  )
+}

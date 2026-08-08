@@ -1,0 +1,63 @@
+# ---------------------------------------------------------------------------
+# Chemi Colours — deployed by CI. Edits made here on the server WILL be
+# overwritten on the next deploy; change this file in the repo instead.
+# ---------------------------------------------------------------------------
+
+# cPanel-generated PHP directives (kept verbatim so PHP keeps working).
+<IfModule php8_module>
+   php_value error_log "/home/noycuuae/logs/php.error.log"
+   php_flag log_errors On
+</IfModule>
+<IfModule lsapi_module>
+   php_value error_log "/home/noycuuae/logs/php.error.log"
+   php_flag log_errors On
+</IfModule>
+<IfModule mime_module>
+  AddHandler application/x-httpd-ea-php82 .php .php8 .phtml
+</IfModule>
+
+Options -Indexes
+
+<IfModule mod_headers.c>
+  Header always set X-Content-Type-Options "nosniff"
+  Header always set X-Frame-Options "SAMEORIGIN"
+  Header always set Referrer-Policy "strict-origin-when-cross-origin"
+  Header always set X-XSS-Protection "0"
+</IfModule>
+
+# Hashed asset filenames can be cached hard; the HTML shell must not be.
+<IfModule mod_expires.c>
+  ExpiresActive On
+  ExpiresByType text/css "access plus 1 year"
+  ExpiresByType application/javascript "access plus 1 year"
+  ExpiresByType image/webp "access plus 6 months"
+  ExpiresByType image/png "access plus 6 months"
+  ExpiresByType image/jpeg "access plus 6 months"
+</IfModule>
+
+<FilesMatch "^index\.html$">
+  <IfModule mod_headers.c>
+    Header set Cache-Control "no-cache, must-revalidate"
+  </IfModule>
+</FilesMatch>
+
+# Never serve the config or dotfiles, whatever happens.
+<FilesMatch "^(\.env|.*\.ini|composer\.(json|lock))$">
+  Require all denied
+</FilesMatch>
+
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+
+  # The API and uploaded files are real paths — never rewrite them.
+  RewriteRule ^api/ - [L]
+  RewriteRule ^uploads/ - [L]
+
+  # Anything that exists on disk is served as-is.
+  RewriteCond %{REQUEST_FILENAME} -f [OR]
+  RewriteCond %{REQUEST_FILENAME} -d
+  RewriteRule ^ - [L]
+
+  # Everything else is a client-side route: hand it to the SPA shell.
+  RewriteRule . /index.html [L]
+</IfModule>

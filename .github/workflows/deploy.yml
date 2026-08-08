@@ -13,7 +13,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
 
       - run: npm ci
       - run: npm run build
@@ -22,8 +22,23 @@ jobs:
         env:
           SSH_PRIVATE_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
         run: |
+          set -euo pipefail
           mkdir -p ~/.ssh
           printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
-          ssh-keyscan -p 2036 91.98.176.112 >> ~/.ssh/known_hosts
+          ssh-keyscan -p 2036 91.98.176.112 >> ~/.ssh/known_hosts 2>/dev/null
+
+          # dotglob so dist/.htaccess is included; the server side runs a
+          # forced `scp -r -t <docroot>` so everything lands in the web root.
+          shopt -s dotglob
           scp -O -P 2036 -i ~/.ssh/deploy_key -r dist/* noycuuae@91.98.176.112:
+
+      - name: Verify the site responds
+        run: |
+          set -euo pipefail
+          code=$(curl -s -o /dev/null -w '%{http_code}' https://chemicolours.noychoy.com/)
+          echo "Homepage returned $code"
+          test "$code" = "200"
+          api=$(curl -s -o /dev/null -w '%{http_code}' https://chemicolours.noychoy.com/api/bootstrap)
+          echo "API returned $api"
+          test "$api" = "200"

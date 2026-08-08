@@ -1,0 +1,581 @@
+<?php
+declare(strict_types=1);
+
+/** Admin CRUD. Every route requires a session; every write requires CSRF. */
+
+const SETTING_KEYS = [
+    'site_name', 'logo_text', 'hero_video_url', 'hero_poster_url',
+    'contact_email', 'contact_phone', 'address',
+    'cta_label', 'cta_href',
+    'footer_tagline', 'footer_note', 'footer_columns',
+    'social_twitter', 'social_facebook', 'social_instagram', 'social_linkedin',
+    'form_services', 'form_heading', 'form_intro',
+    'form_success_title', 'form_success_text',
+];
+
+const JSON_SETTING_KEYS = ['form_services', 'footer_columns'];
+
+const BLOCK_TYPES = [
+    'hero', 'pagehero', 'richtext', 'features', 'stats', 'timeline',
+    'product_grid', 'gallery', 'cta', 'contact', 'faq', 'logos',
+];
+
+function handle_admin(string $method, array $seg): void
+{
+    require_admin();
+    if ($method !== 'GET') {
+        require_csrf();
+    }
+
+    $head = $seg[0] ?? '';
+    $rest = array_slice($seg, 1);
+
+    match ($head) {
+        'overview'   => admin_overview(),
+        'pages'      => admin_pages($method, $rest),
+        'products'   => admin_products($method, $rest),
+        'categories' => admin_categories($method, $rest),
+        'media'      => admin_media($method, $rest),
+        'settings'   => admin_settings($method),
+        'leads'      => admin_leads($method, $rest),
+        default      => throw new ApiError('Unknown admin endpoint.', 404),
+    };
+}
+
+// ---------------------------------------------------------------- overview --
+function admin_overview(): void
+{
+    json_out([
+        'products'  => (int) db()->query('SELECT COUNT(*) FROM products')->fetchColumn(),
+        'pages'     => (int) db()->query('SELECT COUNT(*) FROM pages')->fetchColumn(),
+        'media'     => (int) db()->query('SELECT COUNT(*) FROM media')->fetchColumn(),
+        'newLeads'  => (int) db()->query("SELECT COUNT(*) FROM leads WHERE status = 'new'")->fetchColumn(),
+        'leads'     => (int) db()->query('SELECT COUNT(*) FROM leads')->fetchColumn(),
+    ]);
+}
+
+// ------------------------------------------------------------------- pages --
+function admin_pages(string $method, array $seg): void
+{
+    $id = isset($seg[0]) && ctype_digit($seg[0]) ? (int) $seg[0] : 0;
+    $sub = $seg[1] ?? '';
+
+    if ($method === 'GET' && !$id) {
+        json_out(db()->query(
+            'SELECT id, slug, title, nav_label, nav_order, in_nav, is_home, status,
+                    meta_title, meta_description, updated_at
+             FROM pages ORDER BY nav_order ASC, id ASC'
+        )->fetchAll());
+    }
+
+    if ($method === 'GET' && $id) {
+        $stmt = db()->prepare('SELECT * FROM pages WHERE id = ?');
+        $stmt->execute([$id]);
+        $page = $stmt->fetch();
+        if (!$page) {
+            throw new ApiError('Page not found.', 404);
+        }
+        $bs = db()->prepare('SELECT * FROM blocks WHERE page_id = ? ORDER BY sort_order ASC');
+        $bs->execute([$id]);
+        $page['blocks'] = array_map(static fn($b) => [
+            'id'      => (int) $b['id'],
+            'type'    => $b['type'],
+            'visible' => (bool) $b['visible'],
+            'data'    => decode_json_col($b['data']),
+        ], $bs->fetchAll());
+        json_out($page);
+    }
+
+    if ($method === 'POST' && !$id) {
+        $b = body();
+        $title = plain(field($b, 'title', true), 200);
+        $slug = unique_slug('pages', slugify(field($b, 'slug') ?: $title, 'page'));
+        $stmt = db()->prepare(
+            'INSERT INTO pages (slug, title, nav_label, nav_order, in_nav, status, meta_title, meta_description)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
+        );
+        $stmt->execute([
+            $slug,
+            $title,
+            plain(field($b, 'nav_label'), 100),
+            int_field($b, 'nav_order'),
+            bool_field($b, 'in_nav', true) ? 1 : 0,
+            field($b, 'status') === 'published' ? 'published' : 'draft',
+            plain(field($b, 'meta_title'), 200),
+            plain(field($b, 'meta_description'), 300),
+        ]);
+        json_out(['id' => (int) db()->lastInsertId(), 'slug' => $slug], 201);
+    }
+
+    if ($method === 'PUT' && $id && $sub === 'blocks') {
+        save_blocks($id, body()['blocks'] ?? []);
+        json_out(['ok' => true]);
+    }
+
+    if ($method === 'PUT' && $id) {
+        $b = body();
+        $existing = db()->prepare('SELECT * FROM pages WHERE id = ?');
+        $existing->execute([$id]);
+        $page = $existing->fetch();
+        if (!$page) {
+            throw new ApiError('Page not found.', 404);
+        }
+        $title = plain(field($b, 'title', true), 200);
+        $slug = unique_slug('pages', slugify(field($b, 'slug') ?: $title, 'page'), $id);
+
+        $stmt = db()->prepare(
+            'UPDATE pages SET slug = ?, title = ?, nav_label = ?, nav_order = ?, in_nav = ?,
+                    status = ?, meta_title = ?, meta_description = ? WHERE id = ?'
+        );
+        $stmt->execute([
+            $slug,
+            $title,
+            plain(field($b, 'nav_label'), 100),
+            int_field($b, 'nav_order'),
+            bool_field($b, 'in_nav', true) ? 1 : 0,
+            field($b, 'status') === 'published' ? 'published' : 'draft',
+            plain(field($b, 'meta_title'), 200),
+            plain(field($b, 'meta_description'), 300),
+            $id,
+        ]);
+
+        if (array_key_exists('blocks', $b)) {
+            save_blocks($id, $b['blocks']);
+        }
+        json_out(['ok' => true, 'slug' => $slug]);
+    }
+
+    if ($method === 'DELETE' && $id) {
+        $isHome = (int) db()->query("SELECT is_home FROM pages WHERE id = $id")->fetchColumn();
+        if ($isHome === 1) {
+            throw new ApiError('The home page cannot be deleted.', 409);
+        }
+        db()->prepare('DELETE FROM pages WHERE id = ?')->execute([$id]);
+        json_out(['ok' => true]);
+    }
+
+    throw new ApiError('Unknown pages endpoint.', 404);
+}
+
+function save_blocks(int $pageId, mixed $blocks): void
+{
+    if (!is_array($blocks)) {
+        throw new ApiError('blocks must be an array.', 422);
+    }
+    $pdo = db();
+    $pdo->beginTransaction();
+    try {
+        $pdo->prepare('DELETE FROM blocks WHERE page_id = ?')->execute([$pageId]);
+        $ins = $pdo->prepare(
+            'INSERT INTO blocks (page_id, type, sort_order, visible, data) VALUES (?, ?, ?, ?, ?)'
+        );
+        foreach (array_values($blocks) as $i => $blk) {
+            if (!is_array($blk)) {
+                continue;
+            }
+            $type = (string) ($blk['type'] ?? '');
+            if (!in_array($type, BLOCK_TYPES, true)) {
+                throw new ApiError("Unknown block type \"$type\".", 422);
+            }
+            $ins->execute([
+                $pageId,
+                $type,
+                $i,
+                !empty($blk['visible']) ? 1 : 0,
+                json_col(sanitize_block_data($blk['data'] ?? [])),
+            ]);
+        }
+        $pdo->commit();
+    } catch (Throwable $e) {
+        $pdo->rollBack();
+        throw $e;
+    }
+}
+
+/** Rich-text (`html`) keys get whitelist-sanitised; everything else is de-tagged. */
+function sanitize_block_data(mixed $data): mixed
+{
+    if (is_string($data)) {
+        return trim(strip_tags($data));
+    }
+    if (!is_array($data)) {
+        return $data;
+    }
+    $out = [];
+    foreach ($data as $k => $v) {
+        if ($k === 'html' && is_string($v)) {
+            $out[$k] = sanitize_html($v);
+        } else {
+            $out[$k] = sanitize_block_data($v);
+        }
+    }
+    return $out;
+}
+
+// ---------------------------------------------------------------- products --
+function admin_shape_product(array $p): array
+{
+    return [
+        'id'          => (int) $p['id'],
+        'slug'        => $p['slug'],
+        'name'        => $p['name'],
+        'categoryId'  => $p['category_id'] !== null ? (int) $p['category_id'] : null,
+        'ciName'      => $p['ci_name'],
+        'casNo'       => $p['cas_no'],
+        'shadeName'   => $p['shade_name'],
+        'shadeHex'    => $p['shade_hex'],
+        'fastnessLight' => $p['fastness_light'],
+        'fastnessWash'  => $p['fastness_wash'],
+        'fastnessRub'   => $p['fastness_rub'],
+        'fibres'      => decode_json_col($p['fibres']),
+        'summary'     => $p['summary'],
+        'description' => $p['description'] ?? '',
+        'application' => $p['application_notes'] ?? '',
+        'imageId'     => $p['image_id'] !== null ? (int) $p['image_id'] : null,
+        'galleryIds'  => array_map('intval', decode_json_col($p['gallery'])),
+        'specSheetId' => $p['spec_sheet_id'] !== null ? (int) $p['spec_sheet_id'] : null,
+        'status'      => $p['status'],
+        'featured'    => (bool) $p['featured'],
+        'sortOrder'   => (int) $p['sort_order'],
+    ];
+}
+
+function product_columns(array $b): array
+{
+    $fibres = is_array($b['fibres'] ?? null) ? $b['fibres'] : [];
+    $gallery = is_array($b['galleryIds'] ?? null) ? array_map('intval', $b['galleryIds']) : [];
+    $hex = field($b, 'shadeHex');
+    if ($hex !== '' && !preg_match('/^#[0-9a-fA-F]{3,8}$/', $hex)) {
+        $hex = '';
+    }
+    return [
+        plain(field($b, 'name', true), 200),
+        ($cid = int_field($b, 'categoryId')) > 0 ? $cid : null,
+        plain(field($b, 'ciName'), 120),
+        plain(field($b, 'casNo'), 60),
+        plain(field($b, 'shadeName'), 120),
+        $hex,
+        plain(field($b, 'fastnessLight'), 20),
+        plain(field($b, 'fastnessWash'), 20),
+        plain(field($b, 'fastnessRub'), 20),
+        json_col(array_slice(array_map(static fn($f) => plain((string) $f, 60), $fibres), 0, 30)),
+        plain(field($b, 'summary'), 400),
+        sanitize_html((string) ($b['description'] ?? '')),
+        sanitize_html((string) ($b['application'] ?? '')),
+        ($iid = int_field($b, 'imageId')) > 0 ? $iid : null,
+        json_col($gallery),
+        ($sid = int_field($b, 'specSheetId')) > 0 ? $sid : null,
+        field($b, 'status') === 'draft' ? 'draft' : 'published',
+        bool_field($b, 'featured') ? 1 : 0,
+        int_field($b, 'sortOrder'),
+    ];
+}
+
+function admin_products(string $method, array $seg): void
+{
+    $id = isset($seg[0]) && ctype_digit($seg[0]) ? (int) $seg[0] : 0;
+
+    if ($method === 'GET' && !$id) {
+        $rows = db()->query('SELECT * FROM products ORDER BY sort_order ASC, name ASC')->fetchAll();
+        json_out(array_map('admin_shape_product', $rows));
+    }
+
+    if ($method === 'GET' && $id) {
+        $stmt = db()->prepare('SELECT * FROM products WHERE id = ?');
+        $stmt->execute([$id]);
+        $row = $stmt->fetch();
+        if (!$row) {
+            throw new ApiError('Product not found.', 404);
+        }
+        json_out(admin_shape_product($row));
+    }
+
+    if ($method === 'POST' && !$id) {
+        $b = body();
+        $cols = product_columns($b);
+        $slug = unique_slug('products', slugify(field($b, 'slug') ?: $cols[0], 'product'));
+        $stmt = db()->prepare(
+            'INSERT INTO products (name, category_id, ci_name, cas_no, shade_name, shade_hex,
+                fastness_light, fastness_wash, fastness_rub, fibres, summary, description,
+                application_notes, image_id, gallery, spec_sheet_id, status, featured, sort_order, slug)
+             VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)'
+        );
+        $stmt->execute([...$cols, $slug]);
+        json_out(['id' => (int) db()->lastInsertId(), 'slug' => $slug], 201);
+    }
+
+    if ($method === 'PUT' && $id) {
+        $b = body();
+        $cols = product_columns($b);
+        $slug = unique_slug('products', slugify(field($b, 'slug') ?: $cols[0], 'product'), $id);
+        $stmt = db()->prepare(
+            'UPDATE products SET name=?, category_id=?, ci_name=?, cas_no=?, shade_name=?, shade_hex=?,
+                fastness_light=?, fastness_wash=?, fastness_rub=?, fibres=?, summary=?, description=?,
+                application_notes=?, image_id=?, gallery=?, spec_sheet_id=?, status=?, featured=?,
+                sort_order=?, slug=? WHERE id=?'
+        );
+        $stmt->execute([...$cols, $slug, $id]);
+        json_out(['ok' => true, 'slug' => $slug]);
+    }
+
+    if ($method === 'DELETE' && $id) {
+        db()->prepare('DELETE FROM products WHERE id = ?')->execute([$id]);
+        json_out(['ok' => true]);
+    }
+
+    throw new ApiError('Unknown products endpoint.', 404);
+}
+
+// -------------------------------------------------------------- categories --
+function admin_categories(string $method, array $seg): void
+{
+    $id = isset($seg[0]) && ctype_digit($seg[0]) ? (int) $seg[0] : 0;
+
+    if ($method === 'GET') {
+        json_out(db()->query('SELECT * FROM categories ORDER BY sort_order ASC, name ASC')->fetchAll());
+    }
+
+    if ($method === 'POST') {
+        $b = body();
+        $name = plain(field($b, 'name', true), 150);
+        $slug = unique_slug('categories', slugify($name, 'category'));
+        $stmt = db()->prepare('INSERT INTO categories (slug, name, description, sort_order) VALUES (?,?,?,?)');
+        $stmt->execute([$slug, $name, plain(field($b, 'description'), 1000), int_field($b, 'sort_order')]);
+        json_out(['id' => (int) db()->lastInsertId()], 201);
+    }
+
+    if ($method === 'PUT' && $id) {
+        $b = body();
+        $name = plain(field($b, 'name', true), 150);
+        $slug = unique_slug('categories', slugify(field($b, 'slug') ?: $name, 'category'), $id);
+        $stmt = db()->prepare('UPDATE categories SET slug=?, name=?, description=?, sort_order=? WHERE id=?');
+        $stmt->execute([$slug, $name, plain(field($b, 'description'), 1000), int_field($b, 'sort_order'), $id]);
+        json_out(['ok' => true]);
+    }
+
+    if ($method === 'DELETE' && $id) {
+        // Products keep existing but become uncategorised.
+        db()->prepare('UPDATE products SET category_id = NULL WHERE category_id = ?')->execute([$id]);
+        db()->prepare('DELETE FROM categories WHERE id = ?')->execute([$id]);
+        json_out(['ok' => true]);
+    }
+
+    throw new ApiError('Unknown categories endpoint.', 404);
+}
+
+// ------------------------------------------------------------------- media --
+const UPLOAD_RULES = [
+    'jpg'  => ['image/jpeg', 'image', 10],
+    'jpeg' => ['image/jpeg', 'image', 10],
+    'png'  => ['image/png', 'image', 10],
+    'webp' => ['image/webp', 'image', 10],
+    'gif'  => ['image/gif', 'image', 10],
+    'avif' => ['image/avif', 'image', 10],
+    'mp4'  => ['video/mp4', 'video', 100],
+    'webm' => ['video/webm', 'video', 100],
+    'mov'  => ['video/quicktime', 'video', 100],
+    'pdf'  => ['application/pdf', 'doc', 20],
+];
+
+function admin_media(string $method, array $seg): void
+{
+    global $CONFIG;
+    $action = $seg[0] ?? '';
+    $id = ctype_digit((string) $action) ? (int) $action : 0;
+
+    if ($method === 'GET') {
+        $kind = $_GET['kind'] ?? '';
+        $sql = 'SELECT * FROM media';
+        $args = [];
+        if (in_array($kind, ['image', 'video', 'doc'], true)) {
+            $sql .= ' WHERE kind = ?';
+            $args[] = $kind;
+        }
+        $sql .= ' ORDER BY created_at DESC LIMIT 500';
+        $stmt = db()->prepare($sql);
+        $stmt->execute($args);
+        json_out(array_map(static fn($m) => [
+            'id'       => (int) $m['id'],
+            'kind'     => $m['kind'],
+            'url'      => media_url($m),
+            'name'     => $m['original_name'] !== '' ? $m['original_name'] : $m['filename'],
+            'mime'     => $m['mime'],
+            'size'     => (int) $m['size_bytes'],
+            'external' => $m['external_url'] !== '',
+            'alt'      => $m['alt'],
+        ], $stmt->fetchAll()));
+    }
+
+    // Register an off-site asset (CloudFront, CDN, etc.) without uploading.
+    if ($method === 'POST' && $action === 'link') {
+        $b = body();
+        $url = field($b, 'url', true);
+        if (!preg_match('#^https?://#i', $url)) {
+            throw new ApiError('Enter a full http(s) URL.', 422);
+        }
+        $kind = in_array(field($b, 'kind'), ['image', 'video', 'doc'], true) ? field($b, 'kind') : 'image';
+        $stmt = db()->prepare(
+            'INSERT INTO media (kind, external_url, original_name, alt) VALUES (?,?,?,?)'
+        );
+        $stmt->execute([$kind, mb_substr($url, 0, 1000), plain(field($b, 'name'), 255), plain(field($b, 'alt'), 300)]);
+        json_out(['id' => (int) db()->lastInsertId()], 201);
+    }
+
+    if ($method === 'POST' && $action === 'upload') {
+        $file = $_FILES['file'] ?? null;
+        if (!$file || ($file['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK) {
+            throw new ApiError(upload_error_text((int) ($file['error'] ?? UPLOAD_ERR_NO_FILE)), 422);
+        }
+
+        $orig = (string) $file['name'];
+        $ext = strtolower(pathinfo($orig, PATHINFO_EXTENSION));
+        if (!isset(UPLOAD_RULES[$ext])) {
+            throw new ApiError('Unsupported file type: .' . $ext, 422);
+        }
+        [$expectedMime, $kind, $maxMb] = UPLOAD_RULES[$ext];
+
+        if ($file['size'] > $maxMb * 1024 * 1024) {
+            throw new ApiError("File is larger than {$maxMb} MB.", 422);
+        }
+
+        $finfo = new finfo(FILEINFO_MIME_TYPE);
+        $realMime = (string) $finfo->file($file['tmp_name']);
+        // quicktime/mp4 containers are reported inconsistently, so allow the family.
+        $family = explode('/', $expectedMime)[0];
+        if ($realMime !== $expectedMime && !str_starts_with($realMime, $family . '/')) {
+            throw new ApiError('File contents do not match its extension.', 422);
+        }
+
+        $dir = $CONFIG['uploads_dir'];
+        if (!is_dir($dir) && !mkdir($dir, 0755, true) && !is_dir($dir)) {
+            throw new ApiError('Upload directory is not writable.', 500);
+        }
+        harden_uploads_dir($dir);
+
+        $safe = slugify(pathinfo($orig, PATHINFO_FILENAME), 'file');
+        $filename = bin2hex(random_bytes(6)) . '-' . substr($safe, 0, 60) . '.' . $ext;
+
+        if (!move_uploaded_file($file['tmp_name'], $dir . '/' . $filename)) {
+            throw new ApiError('Could not save the uploaded file.', 500);
+        }
+        @chmod($dir . '/' . $filename, 0644);
+
+        $stmt = db()->prepare(
+            'INSERT INTO media (kind, filename, original_name, mime, size_bytes, alt) VALUES (?,?,?,?,?,?)'
+        );
+        $stmt->execute([$kind, $filename, mb_substr($orig, 0, 255), $realMime, (int) $file['size'], '']);
+
+        json_out([
+            'id'   => (int) db()->lastInsertId(),
+            'url'  => '/uploads/' . $filename,
+            'kind' => $kind,
+        ], 201);
+    }
+
+    if ($method === 'DELETE' && $id) {
+        $stmt = db()->prepare('SELECT * FROM media WHERE id = ?');
+        $stmt->execute([$id]);
+        $m = $stmt->fetch();
+        if ($m && $m['filename'] !== '') {
+            $p = $CONFIG['uploads_dir'] . '/' . basename($m['filename']);
+            if (is_file($p)) {
+                @unlink($p);
+            }
+        }
+        db()->prepare('DELETE FROM media WHERE id = ?')->execute([$id]);
+        json_out(['ok' => true]);
+    }
+
+    throw new ApiError('Unknown media endpoint.', 404);
+}
+
+/** Belt-and-braces: uploads must never be executed as code. */
+function harden_uploads_dir(string $dir): void
+{
+    $ht = $dir . '/.htaccess';
+    if (is_file($ht)) {
+        return;
+    }
+    @file_put_contents($ht, <<<'HTA'
+    php_flag engine off
+    <FilesMatch "\.(php|phtml|php[0-9]|phar|pl|py|cgi|sh|htaccess)$">
+      Require all denied
+    </FilesMatch>
+    HTA);
+}
+
+function upload_error_text(int $code): string
+{
+    return match ($code) {
+        UPLOAD_ERR_INI_SIZE, UPLOAD_ERR_FORM_SIZE => 'The file is too large for the server to accept.',
+        UPLOAD_ERR_PARTIAL   => 'The upload was interrupted. Please try again.',
+        UPLOAD_ERR_NO_FILE   => 'No file was received.',
+        UPLOAD_ERR_NO_TMP_DIR, UPLOAD_ERR_CANT_WRITE => 'The server could not write the file.',
+        default              => 'Upload failed.',
+    };
+}
+
+// ---------------------------------------------------------------- settings --
+function admin_settings(string $method): void
+{
+    if ($method === 'GET') {
+        json_out(all_settings());
+    }
+
+    if ($method === 'PUT') {
+        $b = body();
+        $stmt = db()->prepare(
+            'INSERT INTO settings (`key`, `value`) VALUES (?, ?)
+             ON DUPLICATE KEY UPDATE `value` = VALUES(`value`)'
+        );
+        foreach ($b as $key => $value) {
+            if (!in_array($key, SETTING_KEYS, true)) {
+                continue;
+            }
+            if (in_array($key, JSON_SETTING_KEYS, true)) {
+                $stmt->execute([$key, json_col(is_array($value) ? $value : [])]);
+            } else {
+                $stmt->execute([$key, plain((string) $value, 2000)]);
+            }
+        }
+        json_out(['ok' => true]);
+    }
+
+    throw new ApiError('Unknown settings endpoint.', 404);
+}
+
+// ------------------------------------------------------------------- leads --
+function admin_leads(string $method, array $seg): void
+{
+    $id = isset($seg[0]) && ctype_digit($seg[0]) ? (int) $seg[0] : 0;
+
+    if ($method === 'GET') {
+        $rows = db()->query('SELECT * FROM leads ORDER BY created_at DESC LIMIT 500')->fetchAll();
+        json_out(array_map(static fn($l) => [
+            'id'        => (int) $l['id'],
+            'name'      => $l['name'],
+            'email'     => $l['email'],
+            'company'   => $l['company'],
+            'message'   => $l['message'],
+            'services'  => decode_json_col($l['services']),
+            'status'    => $l['status'],
+            'createdAt' => $l['created_at'],
+        ], $rows));
+    }
+
+    if ($method === 'PATCH' && $id) {
+        $status = field(body(), 'status', true);
+        if (!in_array($status, ['new', 'read', 'archived'], true)) {
+            throw new ApiError('Invalid status.', 422);
+        }
+        db()->prepare('UPDATE leads SET status = ? WHERE id = ?')->execute([$status, $id]);
+        json_out(['ok' => true]);
+    }
+
+    if ($method === 'DELETE' && $id) {
+        db()->prepare('DELETE FROM leads WHERE id = ?')->execute([$id]);
+        json_out(['ok' => true]);
+    }
+
+    throw new ApiError('Unknown leads endpoint.', 404);
+}
