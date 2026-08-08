@@ -5,6 +5,13 @@ import Navbar from './Navbar'
 import Footer from './Footer'
 import FloatingContact from './FloatingContact'
 
+/** Horizontal placement of the floating menu bar. */
+const NAV_ALIGN: Record<string, string> = {
+  left: 'justify-start',
+  center: 'justify-center',
+  right: 'justify-end',
+}
+
 /** Neutral holding screen: no chrome, so nothing renders half-empty. */
 function Booting() {
   return (
@@ -43,7 +50,7 @@ function Offline({ onRetry }: { onRetry: () => void }) {
 
 export default function SiteLayout() {
   const { pathname } = useLocation()
-  const { loading, offline, refresh } = useSite()
+  const { loading, offline, refresh, settings } = useSite()
   const isHome = pathname === '/'
 
   useEffect(() => {
@@ -59,8 +66,12 @@ export default function SiteLayout() {
     <div className="min-h-screen bg-white p-3 sm:p-4 md:p-6">
       {/* Fixed so the menu stays reachable all the way down the page. The
           padding mirrors the page gutter so the bar lines up with content. */}
-      <div className="fixed inset-x-0 top-0 z-30 px-3 sm:px-4 md:px-6 pt-3 sm:pt-4 md:pt-6 pointer-events-none">
-        <div className="pointer-events-auto">
+      <div
+        className={`fixed inset-x-0 top-0 z-30 px-3 sm:px-4 md:px-6 pt-3 sm:pt-4 md:pt-6 pointer-events-none flex ${
+          NAV_ALIGN[settings.nav_align || 'left'] ?? NAV_ALIGN.left
+        }`}
+      >
+        <div className="pointer-events-auto w-full sm:w-auto">
           <Navbar variant={isHome ? 'overlay' : 'solid'} />
         </div>
       </div>

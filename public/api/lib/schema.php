@@ -8,7 +8,7 @@ declare(strict_types=1);
  */
 
 /** Bump whenever the statements below change, to re-run them once. */
-const SCHEMA_VERSION = 6;
+const SCHEMA_VERSION = 7;
 
 /**
  * Cheap gate in front of the real work. Without it every single API request
@@ -357,6 +357,7 @@ function seed_settings(): void
     setting_default('footer_extra', json_encode([]));
     setting_default('nav_items', json_encode([]));
     setting_default('nav_bg_color', '#ffffff');
+    setting_default('nav_align', 'left');
     setting_default('nav_text_color', '#1f2937');
     setting_default('footer_map_url', '');
     setting_default('hero_video_url', 'https://d8j0ntlcm91z4.cloudfront.net/user_38xzZboKViGWJOttwIXH07lWA1P/hf_20260602_150901_c45b90ec-18d7-42ff-90e2-b95d7109e330.mp4');

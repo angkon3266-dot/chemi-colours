@@ -28,7 +28,7 @@ export const BLOCK_SCHEMAS: Record<BlockType, BlockSchema> = {
       { key: 'headline2', label: 'Headline — second line', type: 'text' },
       { key: 'accent', label: 'Accent word', type: 'text', hint: 'Shown in italic serif at the end of line two.' },
       { key: 'useSiteVideo', label: 'Use the site-wide background video', type: 'bool', hint: 'Set that video under Settings.' },
-      { key: 'videoUrl', label: 'Custom video URL', type: 'media', mediaKind: 'video', hint: 'Only used when the option above is off.' },
+      { key: 'videoUrl', label: 'Custom video URL', type: 'media', mediaKind: 'video', hint: 'Used only when the option above is off. Leave empty and the site-wide video is used anyway.' },
       { key: 'showForm', label: 'Show the contact form', type: 'bool' },
       { key: 'ctaEnabled', label: 'Show a button over the video', type: 'bool' },
       { key: 'ctaLabel', label: 'Button label', type: 'text', hint: 'e.g. Request a quote' },
@@ -177,15 +177,25 @@ export const BLOCK_SCHEMAS: Record<BlockType, BlockSchema> = {
       { key: 'subtitle', label: 'Subtitle', type: 'text' },
       {
         key: 'source', label: 'Show', type: 'select',
+        hint: 'Choose whether this block lists categories or individual products.',
         options: [
           { value: 'main', label: 'Main categories' },
           { value: 'sub', label: 'Sub-categories' },
           { value: 'products', label: 'Products' },
         ],
       },
+      {
+        key: 'columns', label: 'Tiles per row', type: 'select',
+        hint: 'On desktop. Narrower screens always use fewer.',
+        options: [
+          { value: '4', label: '4 per row' },
+          { value: '3', label: '3 per row' },
+          { value: '2', label: '2 per row' },
+        ],
+      },
       { key: 'limit', label: 'Maximum tiles', type: 'number', hint: '0 means no limit.' },
     ],
-    defaults: { title: '', subtitle: '', source: 'main', limit: 0 },
+    defaults: { title: '', subtitle: '', source: 'main', columns: '4', limit: 0 },
   },
   parallax: {
     label: 'Category showcase (scroll effect)',

@@ -11,7 +11,7 @@ const SETTING_KEYS = [
     'cta_label', 'cta_href',
     'footer_tagline', 'footer_note', 'footer_columns',
     'footer_address', 'footer_extra',
-    'nav_items', 'nav_bg_color', 'nav_text_color', 'footer_map_url',
+    'nav_items', 'nav_bg_color', 'nav_text_color', 'nav_align', 'footer_map_url',
     'social_twitter', 'social_facebook', 'social_instagram', 'social_linkedin',
     'form_services', 'form_heading', 'form_intro',
     'form_success_title', 'form_success_text',

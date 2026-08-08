@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Plus, Trash2, X, ChevronUp, ChevronDown } from 'lucide-react'
 import { api } from '../lib/api'
 import { mapEmbedUrl } from '../lib/contact'
+import AccountCard from './AccountCard'
 import type { FooterColumn, MediaItem, NavItem, Settings } from '../lib/types'
 
 /** Swaps two entries in a list; used by the menu and footer re-order buttons. */
@@ -283,7 +284,30 @@ export default function SettingsEditor() {
           <p className="text-xs text-gray-400 mb-4">
             Over the hero video the bar stays semi-transparent so the video shows through.
           </p>
-          <div className="grid sm:grid-cols-2 gap-4">
+          <Field label="Position" hint="Where the bar sits across the top of the page.">
+            <div className="flex flex-wrap gap-1.5">
+              {[
+                { v: 'left', l: 'Left' },
+                { v: 'center', l: 'Middle' },
+                { v: 'right', l: 'Right' },
+              ].map(({ v, l }) => (
+                <button
+                  key={v}
+                  type="button"
+                  onClick={() => set('nav_align', v)}
+                  className={`text-xs font-medium px-3 py-2 rounded-lg border transition-all ${
+                    (s.nav_align || 'left') === v
+                      ? 'bg-gray-100 text-black border-black'
+                      : 'bg-white text-gray-700 border-gray-200 hover:border-gray-400'
+                  }`}
+                >
+                  {l}
+                </button>
+              ))}
+            </div>
+          </Field>
+
+          <div className="grid sm:grid-cols-2 gap-4 mt-4">
             <Field label="Background">
               <div className="flex gap-2 items-center">
                 <input
@@ -642,6 +666,8 @@ export default function SettingsEditor() {
           </div>
         </div>
       </Card>
+
+      <AccountCard />
 
       <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 px-4 py-3 flex items-center justify-end gap-3 lg:pl-64">
         {save.node}

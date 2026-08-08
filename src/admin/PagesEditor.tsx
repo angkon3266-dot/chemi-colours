@@ -298,7 +298,8 @@ export function PageEditor() {
   const [page, setPage] = useState<any>(null)
   const [blocks, setBlocks] = useState<Block[]>([])
   const [loading, setLoading] = useState(true)
-  const [adding, setAdding] = useState(false)
+  // null = picker closed; a number = insert at that index.
+  const [addingAt, setAddingAt] = useState<number | null>(null)
 
   useEffect(() => {
     api
@@ -336,11 +337,10 @@ export function PageEditor() {
   }
 
   const addBlock = (type: BlockType) => {
-    setBlocks((prev) => [
-      ...prev,
-      { type, visible: true, data: { ...BLOCK_SCHEMAS[type].defaults } },
-    ])
-    setAdding(false)
+    const at = addingAt ?? blocks.length
+    const block = { type, visible: true, data: { ...BLOCK_SCHEMAS[type].defaults } }
+    setBlocks((prev) => [...prev.slice(0, at), block, ...prev.slice(at)])
+    setAddingAt(null)
   }
 
   const submit = async () => {
@@ -446,7 +446,7 @@ export function PageEditor() {
 
       <div className="mt-6 flex items-center justify-between">
         <h2 className="text-base font-semibold text-black">Content blocks</h2>
-        <Button variant="ghost" onClick={() => setAdding(true)}>
+        <Button variant="ghost" onClick={() => setAddingAt(blocks.length)}>
           <span className="inline-flex items-center gap-1.5">
             <Plus size={15} /> Add block
           </span>
@@ -464,6 +464,21 @@ export function PageEditor() {
           const schema = BLOCK_SCHEMAS[block.type]
           if (!schema) return null
           return (
+            <div key={`slot-${i}`} className="flex flex-col gap-3">
+              {/* Drop a new block in at exactly this point. */}
+              <button
+                type="button"
+                onClick={() => setAddingAt(i)}
+                className="group h-6 -my-1.5 flex items-center gap-2 text-gray-300 hover:text-black transition-colors"
+                aria-label={`Insert a block before ${schema.label}`}
+              >
+                <span className="h-px flex-1 bg-gray-200 group-hover:bg-gray-900 transition-colors" />
+                <span className="text-xs font-medium inline-flex items-center gap-1">
+                  <Plus size={13} /> Insert here
+                </span>
+                <span className="h-px flex-1 bg-gray-200 group-hover:bg-gray-900 transition-colors" />
+              </button>
+
             <Card key={i} className={block.visible === false ? 'opacity-60' : ''}>
               <div className="flex items-center justify-between gap-2 mb-4">
                 <div className="flex items-center gap-2 min-w-0">
@@ -530,9 +545,19 @@ export function PageEditor() {
                 ))}
               </div>
             </Card>
+            </div>
           )
         })}
       </div>
+
+      {/* Always reachable, however far down the block list you have scrolled. */}
+      <button
+        type="button"
+        onClick={() => setAddingAt(blocks.length)}
+        className="fixed bottom-20 right-4 sm:right-6 z-40 h-12 pl-4 pr-5 rounded-full bg-black text-white shadow-xl hover:bg-gray-800 transition-colors inline-flex items-center gap-2 text-sm font-semibold"
+      >
+        <Plus size={18} /> Add block
+      </button>
 
       <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 px-4 py-3 flex items-center justify-end gap-3 lg:pl-64">
         {save.node}
@@ -544,8 +569,8 @@ export function PageEditor() {
         </Button>
       </div>
 
-      {adding && (
-        <Modal title="Add a block" onClose={() => setAdding(false)} wide>
+      {addingAt !== null && (
+        <Modal title="Add a block" onClose={() => setAddingAt(null)} wide>
           <div className="grid sm:grid-cols-2 gap-3">
             {BLOCK_ORDER.map((t) => (
               <button

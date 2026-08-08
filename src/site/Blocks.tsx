@@ -13,6 +13,13 @@ import ParallaxCategories from './ParallaxCategories'
 const SECTION = 'py-12 sm:py-16 px-4 sm:px-6'
 const INNER = 'max-w-6xl mx-auto'
 
+/** Desktop tiles-per-row for the category/product grid block. */
+const GRID_COLUMNS: Record<string, string> = {
+  '2': 'grid-cols-1 sm:grid-cols-2',
+  '3': 'grid-cols-2 sm:grid-cols-2 lg:grid-cols-3',
+  '4': 'grid-cols-2 sm:grid-cols-3 lg:grid-cols-4',
+}
+
 /** Where the hero button sits when it is not tucked under the headline. */
 const CTA_POSITIONS: Record<string, string> = {
   center: 'inset-0 flex items-center justify-center',
@@ -24,7 +31,11 @@ const CTA_POSITIONS: Record<string, string> = {
 /* ------------------------------------------------------------------ hero -- */
 function Hero({ data }: { data: Record<string, any> }) {
   const { settings, loading } = useSite()
-  const videoUrl = data.useSiteVideo === false ? data.videoUrl : settings.hero_video_url
+  // A custom clip only wins when one is actually set. Switching the toggle off
+  // without picking a video used to leave the hero with no video at all, which
+  // looked like the background had vanished.
+  const custom = ((data.videoUrl as string) || '').trim()
+  const videoUrl = data.useSiteVideo === false && custom ? custom : settings.hero_video_url
   const poster = settings.hero_poster_url || undefined
   // Wait for the real settings before mounting any <video>, so the configured
   // clip is the only one that ever appears.
@@ -411,6 +422,7 @@ function CategoryGrid({ data }: { data: Record<string, any> }) {
   const { categories, loading } = useCategories()
   const [products, setProducts] = useState<Product[]>([])
   const source = data.source || 'main'
+  const cols = GRID_COLUMNS[String(data.columns ?? '4')] ?? GRID_COLUMNS['4']
 
   useEffect(() => {
     if (source !== 'products') return
@@ -469,8 +481,8 @@ function CategoryGrid({ data }: { data: Record<string, any> }) {
         )}
 
         {loading && source !== 'products' ? (
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
-            {[0, 1, 2].map((i) => (
+          <div className={`grid ${cols} gap-4 sm:gap-5`}>
+            {[0, 1, 2, 3].map((i) => (
               <div key={i} className="rounded-2xl border border-gray-200 overflow-hidden">
                 <div className="aspect-[4/3] bg-gray-100 animate-pulse" />
                 <div className="p-4 h-16" />
@@ -480,7 +492,7 @@ function CategoryGrid({ data }: { data: Record<string, any> }) {
         ) : tiles.length === 0 ? (
           <p className="text-sm text-gray-500">Nothing to show yet. Add items in the admin panel.</p>
         ) : (
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
+          <div className={`grid ${cols} gap-4 sm:gap-5`}>
             {tiles.map((t) => (
               <Link
                 key={t.key}

@@ -91,6 +91,37 @@ function handle_auth(string $method, array $seg): void
         json_out(['ok' => true]);
     }
 
+    // Changing the sign-in address requires the current password, so a left-open
+    // browser cannot be used to take the account over.
+    if ($method === 'POST' && $action === 'email') {
+        $user = require_admin();
+        require_csrf();
+        $b = body();
+        $email = field($b, 'email', true);
+        $current = field($b, 'currentPassword', true);
+
+        if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            throw new ApiError('Enter a valid email address.', 422);
+        }
+
+        $stmt = db()->prepare('SELECT password_hash FROM users WHERE id = ?');
+        $stmt->execute([$user['id']]);
+        if (!password_verify($current, (string) $stmt->fetchColumn())) {
+            throw new ApiError('Current password is incorrect.', 403);
+        }
+
+        $taken = db()->prepare('SELECT id FROM users WHERE email = ? AND id <> ? LIMIT 1');
+        $taken->execute([$email, $user['id']]);
+        if ($taken->fetch()) {
+            throw new ApiError('That email address is already in use.', 409);
+        }
+
+        db()->prepare('UPDATE users SET email = ?, name = ? WHERE id = ?')
+            ->execute([$email, plain(field($b, 'name'), 120), $user['id']]);
+
+        json_out(['ok' => true, 'email' => $email]);
+    }
+
     if ($method === 'POST' && $action === 'password') {
         $user = require_admin();
         require_csrf();
