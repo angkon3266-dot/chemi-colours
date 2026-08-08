@@ -43,10 +43,29 @@ export const BLOCK_SCHEMAS: Record<BlockType, BlockSchema> = {
         ],
       },
       { key: 'ctaHref', label: 'Link target', type: 'text', hint: 'Only used for the "page or URL" action. e.g. /products' },
+      {
+        key: 'ctaPosition', label: 'Button position', type: 'select',
+        options: [
+          { value: 'headline', label: 'Under the headline' },
+          { value: 'center', label: 'Centre of the video' },
+          { value: 'bottom-center', label: 'Bottom centre' },
+          { value: 'top-left', label: 'Top left' },
+          { value: 'top-right', label: 'Top right' },
+        ],
+      },
+      {
+        key: 'ctaStyle', label: 'Button colour', type: 'select',
+        options: [
+          { value: 'white', label: 'White with black text' },
+          { value: 'black', label: 'Black with white text' },
+          { value: 'outline', label: 'Outlined (transparent)' },
+        ],
+      },
     ],
     defaults: {
       headline: '', headline2: '', accent: '', useSiteVideo: true, videoUrl: '',
       showForm: true, ctaEnabled: false, ctaLabel: '', ctaAction: 'link', ctaHref: '/contact',
+      ctaPosition: 'headline', ctaStyle: 'white',
     },
   },
   pagehero: {

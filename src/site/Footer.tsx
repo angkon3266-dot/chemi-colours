@@ -56,7 +56,7 @@ export default function Footer() {
                   <path d="M 256 128 L 128 128 L 0 0 L 128 0 Z" fill="black" />
                 </svg>
                 <span className="font-semibold text-black">
-                  {settings.site_name || 'Chemi Colours'}
+                  {settings.site_name}
                 </span>
               </>
             )}
@@ -164,7 +164,7 @@ export default function Footer() {
 
       <div className="mt-8 pt-5 border-t border-gray-200 flex flex-col sm:flex-row gap-2 sm:items-center sm:justify-between">
         <p className="text-xs text-gray-400">
-          {settings.footer_note || `© ${new Date().getFullYear()} Chemi Colours.`}
+          {settings.footer_note}
         </p>
         <Link to="/admin" className="text-xs text-gray-300 hover:text-gray-500 transition-colors">
           Admin

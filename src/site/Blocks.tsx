@@ -13,6 +13,14 @@ import ParallaxCategories from './ParallaxCategories'
 const SECTION = 'py-12 sm:py-16 px-4 sm:px-6'
 const INNER = 'max-w-6xl mx-auto'
 
+/** Where the hero button sits when it is not tucked under the headline. */
+const CTA_POSITIONS: Record<string, string> = {
+  center: 'inset-0 flex items-center justify-center',
+  'top-left': 'top-24 sm:top-28 left-0',
+  'top-right': 'top-24 sm:top-28 right-0',
+  'bottom-center': 'bottom-8 sm:bottom-10 left-1/2 -translate-x-1/2',
+}
+
 /* ------------------------------------------------------------------ hero -- */
 function Hero({ data }: { data: Record<string, any> }) {
   const { settings, loading } = useSite()
@@ -21,6 +29,9 @@ function Hero({ data }: { data: Record<string, any> }) {
   // Wait for the real settings before mounting any <video>, so the configured
   // clip is the only one that ever appears.
   const showVideo = !loading && !!videoUrl
+
+  const showCta = !!data.ctaEnabled && !!data.ctaLabel
+  const ctaPosition = (data.ctaPosition as string) || 'headline'
 
   return (
     // Viewport height is a MINIMUM, not a lock: with the contact form expanded
@@ -41,6 +52,17 @@ function Hero({ data }: { data: Record<string, any> }) {
         <div className="absolute inset-0 bg-neutral-900" />
       )}
       <div className="absolute inset-0 bg-black/20" />
+
+      {/* Free-floating placements. `top-*` clears the fixed menu bar. */}
+      {showCta && ctaPosition !== 'headline' && (
+        <div
+          className={`absolute z-20 px-4 sm:px-6 md:px-8 ${
+            CTA_POSITIONS[ctaPosition] ?? CTA_POSITIONS.center
+          }`}
+        >
+          <HeroCta data={data} />
+        </div>
+      )}
 
       <div className="relative z-10 flex flex-col min-h-[calc(100vh-24px)] sm:min-h-[calc(100vh-32px)] md:min-h-[calc(100vh-48px)] p-4 sm:p-6 md:p-8 gap-6">
         <div className="flex-1 min-h-[5rem]" />
@@ -63,7 +85,7 @@ function Hero({ data }: { data: Record<string, any> }) {
                 </span>
               )}
             </p>
-            {data.ctaEnabled && data.ctaLabel && <HeroCta data={data} />}
+            {showCta && ctaPosition === 'headline' && <HeroCta data={data} />}
           </div>
 
           {data.showForm !== false && (
@@ -77,6 +99,12 @@ function Hero({ data }: { data: Record<string, any> }) {
   )
 }
 
+const CTA_STYLES: Record<string, string> = {
+  white: 'bg-white text-black hover:bg-gray-100',
+  black: 'bg-black text-white hover:bg-gray-800',
+  outline: 'bg-transparent text-white border-2 border-white hover:bg-white hover:text-black',
+}
+
 /** Configurable button over the hero video: link, WhatsApp, call, email or form. */
 function HeroCta({ data }: { data: Record<string, any> }) {
   const { settings } = useSite()
@@ -87,8 +115,10 @@ function HeroCta({ data }: { data: Record<string, any> }) {
   )
   if (!href) return null
 
-  const cls =
-    'mt-7 inline-flex items-center gap-2 bg-white text-black text-sm font-semibold px-6 py-3.5 rounded-2xl hover:bg-gray-100 transition-colors shadow-lg'
+  const style = CTA_STYLES[data.ctaStyle as string] || CTA_STYLES.white
+  // Only the in-flow placement needs the gap under the headline.
+  const spacing = (data.ctaPosition || 'headline') === 'headline' ? 'mt-7' : ''
+  const cls = `${spacing} inline-flex items-center gap-2 text-sm font-semibold px-6 py-3.5 rounded-2xl transition-colors shadow-lg ${style}`
 
   if (scroll) {
     return (

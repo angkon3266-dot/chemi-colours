@@ -61,7 +61,7 @@ export default function Navbar({ variant = 'overlay' }: { variant?: 'overlay' | 
   const location = useLocation()
 
   const ctaHref = settings.cta_href || '/contact'
-  const ctaLabel = settings.cta_label || 'Get in touch'
+  const ctaLabel = settings.cta_label || ''
 
   const textColor = settings.nav_text_color || '#1f2937'
   // Solid, not translucent: showing the video through the bar read as a
@@ -91,12 +91,14 @@ export default function Navbar({ variant = 'overlay' }: { variant?: 'overlay' | 
           ))}
         </div>
 
-        <Link
-          to={ctaHref}
-          className="ml-auto sm:ml-0 bg-black text-white text-sm font-medium px-4 sm:px-5 py-2 rounded-xl hover:bg-gray-800 transition-colors whitespace-nowrap"
-        >
-          {ctaLabel}
-        </Link>
+        {ctaLabel && (
+          <Link
+            to={ctaHref}
+            className="ml-auto sm:ml-0 bg-black text-white text-sm font-medium px-4 sm:px-5 py-2 rounded-xl hover:bg-gray-800 transition-colors whitespace-nowrap"
+          >
+            {ctaLabel}
+          </Link>
+        )}
 
         <button
           type="button"
@@ -125,7 +127,7 @@ export default function Navbar({ variant = 'overlay' }: { variant?: 'overlay' | 
               />
             </div>
           ))}
-          {location.pathname !== ctaHref && (
+          {ctaLabel && location.pathname !== ctaHref && (
             <Link
               to={ctaHref}
               onClick={() => setMenuOpen(false)}

@@ -67,7 +67,7 @@ export default function CategoryPage() {
   const active = data?.subcategory || data?.category
 
   useEffect(() => {
-    const site = settings.site_name || 'Chemi Colours'
+    const site = settings.site_name || ''
     document.title = active ? `${active.name} — ${site}` : site
   }, [active, settings.site_name])
 

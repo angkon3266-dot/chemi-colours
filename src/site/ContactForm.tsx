@@ -103,7 +103,7 @@ export default function ContactForm({
     }
   }
 
-  const contactEmail = settings.contact_email || 'hello@chemicolours.com'
+  const contactEmail = settings.contact_email || ''
 
   return (
     <div className="bg-white rounded-2xl sm:rounded-3xl shadow-2xl overflow-hidden">
@@ -111,7 +111,7 @@ export default function ContactForm({
         {/* Header — doubles as the collapse toggle */}
         <div className="flex items-center justify-between gap-3">
           <h2 className="text-xl sm:text-2xl font-semibold text-black tracking-tight">
-            {settings.form_heading || 'Say hello! 👋'}
+            {settings.form_heading}
           </h2>
           {collapsible && !sent && (
             <button
@@ -133,12 +133,14 @@ export default function ContactForm({
         <div className="flex flex-row items-center justify-between gap-3 bg-gray-50 rounded-2xl px-4 py-2.5">
           <div className="min-w-0">
             <p className="text-xs text-gray-500">Drop us a line</p>
-            <a
-              href={`mailto:${contactEmail}`}
-              className="text-blue-600 font-semibold hover:underline truncate block"
-            >
-              {contactEmail}
-            </a>
+            {contactEmail && (
+              <a
+                href={`mailto:${contactEmail}`}
+                className="text-blue-600 font-semibold hover:underline truncate block"
+              >
+                {contactEmail}
+              </a>
+            )}
           </div>
           {socials.length > 0 && (
             <div className="flex items-center gap-2 shrink-0">
@@ -161,10 +163,10 @@ export default function ContactForm({
                   ✓
                 </div>
                 <h3 className="text-base font-semibold text-gray-900">
-                  {settings.form_success_title || "You're all set!"}
+                  {settings.form_success_title}
                 </h3>
                 <p className="text-sm text-gray-500">
-                  {settings.form_success_text || 'Expect a reply within 24 hours.'}
+                  {settings.form_success_text}
                 </p>
               </div>
             ) : (
@@ -177,7 +179,7 @@ export default function ContactForm({
 
                 <form onSubmit={handleSubmit} className="flex flex-col gap-4">
                   <label className="text-sm font-medium text-black">
-                    {settings.form_intro || 'Tell us about your requirement'}
+                    {settings.form_intro}
                   </label>
 
                   <div className="flex flex-col sm:flex-row gap-2">

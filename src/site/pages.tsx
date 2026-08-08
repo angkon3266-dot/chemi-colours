@@ -11,7 +11,7 @@ import ContactActions from './ContactActions'
 function useDocTitle(title?: string) {
   const { settings } = useSite()
   useEffect(() => {
-    const site = settings.site_name || 'Chemi Colours'
+    const site = settings.site_name || ''
     document.title = title ? `${title} — ${site}` : site
   }, [title, settings.site_name])
 }

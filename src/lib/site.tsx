@@ -55,6 +55,15 @@ const FALLBACK: Bootstrap = {
   },
 }
 
+/**
+ * The starting state. Deliberately blank: seeding state with FALLBACK meant
+ * every visitor saw the built-in menu, button label and footer text for a
+ * moment before their real content replaced it. Components treat missing
+ * values as "not known yet" and render nothing, so there is no flash of
+ * content that was never theirs.
+ */
+const EMPTY: Bootstrap = { settings: {}, nav: [], home: null }
+
 interface SiteValue {
   settings: Settings
   nav: NavItem[]
@@ -65,14 +74,14 @@ interface SiteValue {
 }
 
 const SiteContext = createContext<SiteValue>({
-  ...FALLBACK,
+  ...EMPTY,
   loading: true,
   offline: false,
   refresh: () => {},
 })
 
 export function SiteProvider({ children }: { children: ReactNode }) {
-  const [data, setData] = useState<Bootstrap>(FALLBACK)
+  const [data, setData] = useState<Bootstrap>(EMPTY)
   const [loading, setLoading] = useState(true)
   const [offline, setOffline] = useState(false)
   const [tick, setTick] = useState(0)
@@ -84,7 +93,9 @@ export function SiteProvider({ children }: { children: ReactNode }) {
       .get<Bootstrap>('/bootstrap')
       .then((b) => {
         if (cancelled) return
-        const settings = { ...FALLBACK.settings, ...(b.settings || {}) }
+        // Live settings only — merging the built-ins underneath would quietly
+        // reintroduce stock copy for anything the owner had cleared.
+        const settings = b.settings || {}
 
         // A hand-built menu wins; otherwise the menu is derived from pages.
         const custom = Array.isArray(settings.nav_items) ? settings.nav_items : []
@@ -92,13 +103,18 @@ export function SiteProvider({ children }: { children: ReactNode }) {
 
         setData({
           settings,
-          nav: usable.length ? usable : b.nav?.length ? b.nav : FALLBACK.nav,
-          home: b.home ?? FALLBACK.home,
+          // An empty menu means the owner emptied it, not that we should
+          // resurrect the built-in one.
+          nav: usable.length ? usable : (b.nav ?? []),
+          home: b.home ?? null,
         })
         setOffline(false)
       })
       .catch(() => {
-        if (!cancelled) setOffline(true)
+        // Only now is the built-in content the best we can do.
+        if (cancelled) return
+        setData(FALLBACK)
+        setOffline(true)
       })
       .finally(() => {
         if (!cancelled) setLoading(false)
