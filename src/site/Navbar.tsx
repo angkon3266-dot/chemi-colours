@@ -55,14 +55,6 @@ function NavLink({
   )
 }
 
-/** #rrggbb -> rgba(), so the bar keeps its frosted look at any chosen colour. */
-function withAlpha(hex: string, alpha: number): string {
-  const m = /^#?([0-9a-f]{6})$/i.exec((hex || '').trim())
-  if (!m) return ''
-  const n = parseInt(m[1], 16)
-  return `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, ${alpha})`
-}
-
 export default function Navbar({ variant = 'overlay' }: { variant?: 'overlay' | 'solid' }) {
   const { nav, settings } = useSite()
   const [menuOpen, setMenuOpen] = useState(false)
@@ -72,17 +64,15 @@ export default function Navbar({ variant = 'overlay' }: { variant?: 'overlay' | 
   const ctaLabel = settings.cta_label || 'Get in touch'
 
   const textColor = settings.nav_text_color || '#1f2937'
+  // Solid, not translucent: showing the video through the bar read as a
+  // gradient and made the menu text hard to place.
   const bg = settings.nav_bg_color || '#ffffff'
-  // Over the hero video the bar is translucent; on inner pages it is nearly solid.
-  const bgStyle = withAlpha(bg, variant === 'overlay' ? 0.6 : 0.85)
 
   return (
     <div className="relative">
       <nav
-        style={bgStyle ? { backgroundColor: bgStyle } : undefined}
-        className={`${
-          bgStyle ? '' : variant === 'overlay' ? 'bg-white/60' : 'bg-white/80'
-        } backdrop-blur-md shadow-sm ${
+        style={{ backgroundColor: bg }}
+        className={`shadow-sm ${
           variant === 'solid' ? 'border border-gray-200' : ''
         } rounded-2xl pl-3 sm:pl-4 pr-2 py-2 w-full sm:w-auto sm:inline-flex flex items-center gap-3 sm:gap-6`}
       >

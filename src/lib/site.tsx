@@ -3,20 +3,20 @@ import type { ReactNode } from 'react'
 import { api } from './api'
 import type { Bootstrap, Page, Settings, NavItem } from './types'
 
-export const VIDEO_URL =
-  'https://d8j0ntlcm91z4.cloudfront.net/user_38xzZboKViGWJOttwIXH07lWA1P/hf_20260602_150901_c45b90ec-18d7-42ff-90e2-b95d7109e330.mp4'
-
 /**
  * Rendered when the API cannot be reached (offline, dev without proxy, or an
  * outage). The site degrades to a working landing page rather than a blank screen.
+ *
+ * Deliberately no hero_video_url: hard-coding one meant the old default video
+ * painted for a moment on every load before the real one replaced it.
  */
 const FALLBACK: Bootstrap = {
   settings: {
     site_name: 'Chemi Colours',
     logo_text: 'Chemi Colours',
-    hero_video_url: VIDEO_URL,
+    hero_video_url: '',
     contact_email: 'hello@chemicolours.com',
-    cta_label: 'Start a project',
+    cta_label: 'Get in touch',
     cta_href: '/contact',
     footer_tagline: 'Dyestuff and textile chemicals for mills that cannot afford a bad batch.',
     footer_note: `© ${new Date().getFullYear()} Chemi Colours. All rights reserved.`,

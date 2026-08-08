@@ -15,15 +15,18 @@ const INNER = 'max-w-6xl mx-auto'
 
 /* ------------------------------------------------------------------ hero -- */
 function Hero({ data }: { data: Record<string, any> }) {
-  const { settings } = useSite()
+  const { settings, loading } = useSite()
   const videoUrl = data.useSiteVideo === false ? data.videoUrl : settings.hero_video_url
   const poster = settings.hero_poster_url || undefined
+  // Wait for the real settings before mounting any <video>, so the configured
+  // clip is the only one that ever appears.
+  const showVideo = !loading && !!videoUrl
 
   return (
     // Viewport height is a MINIMUM, not a lock: with the contact form expanded
     // a hard height squashed the card to nothing on short screens.
     <section className="relative rounded-2xl sm:rounded-3xl overflow-hidden min-h-[calc(100vh-24px)] sm:min-h-[calc(100vh-32px)] md:min-h-[calc(100vh-48px)]">
-      {videoUrl ? (
+      {showVideo ? (
         <video
           key={videoUrl}
           src={videoUrl}
@@ -35,7 +38,7 @@ function Hero({ data }: { data: Record<string, any> }) {
           className="absolute inset-0 w-full h-full object-cover"
         />
       ) : (
-        <div className="absolute inset-0 bg-gradient-to-br from-gray-800 to-black" />
+        <div className="absolute inset-0 bg-neutral-900" />
       )}
       <div className="absolute inset-0 bg-black/20" />
 

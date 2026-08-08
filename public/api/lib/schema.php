@@ -138,6 +138,39 @@ function migrate(): void
 
     upgrade_products_page_once();
     add_home_highlights();
+    enable_hero_cta_once();
+}
+
+/**
+ * The hero block was seeded before the over-video button existed, so it has no
+ * CTA keys at all and the button could never render. Fill them in once and
+ * switch it on; the label, action and target stay editable in the page builder.
+ */
+function enable_hero_cta_once(): void
+{
+    $done = db()->query("SELECT `value` FROM settings WHERE `key` = 'hero_cta_v1'")->fetchColumn();
+    if ($done !== false) {
+        return;
+    }
+    db()->prepare('INSERT IGNORE INTO settings (`key`, `value`) VALUES (?, ?)')
+        ->execute(['hero_cta_v1', '1']);
+
+    $stmt = db()->query("SELECT id, data FROM blocks WHERE type = 'hero'");
+    $update = db()->prepare('UPDATE blocks SET data = ? WHERE id = ?');
+
+    foreach ($stmt->fetchAll() as $row) {
+        $data = decode_json_col($row['data']);
+        if (array_key_exists('ctaEnabled', $data)) {
+            continue;
+        }
+        $data += [
+            'ctaEnabled' => true,
+            'ctaLabel'   => 'Request a quote',
+            'ctaAction'  => 'link',
+            'ctaHref'    => '/contact',
+        ];
+        $update->execute([json_col($data), $row['id']]);
+    }
 }
 
 /**

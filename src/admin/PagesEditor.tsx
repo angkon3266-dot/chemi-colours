@@ -305,7 +305,15 @@ export function PageEditor() {
       .get<any>(`/admin/pages/${id}`)
       .then((p) => {
         setPage(p)
-        setBlocks(p.blocks || [])
+        // Blocks saved before a field existed have no value for it. Layering
+        // the schema defaults underneath means new controls always show up on
+        // old blocks instead of silently staying blank.
+        setBlocks(
+          (p.blocks || []).map((b: Block) => ({
+            ...b,
+            data: { ...(BLOCK_SCHEMAS[b.type]?.defaults ?? {}), ...(b.data ?? {}) },
+          }))
+        )
       })
       .catch((e) => save.failed(e.message))
       .finally(() => setLoading(false))
