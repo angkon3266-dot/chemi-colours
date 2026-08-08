@@ -297,7 +297,11 @@ function ProductGrid({ data }: { data: Record<string, any> }) {
 
   useEffect(() => {
     if (!showFilter) return
-    api.get<Category[]>('/categories').then(setCategories).catch(() => setCategories([]))
+    let cancelled = false
+    fetchCategories().then((c) => !cancelled && setCategories(c))
+    return () => {
+      cancelled = true
+    }
   }, [showFilter])
 
   return (
@@ -371,15 +375,33 @@ function ProductGrid({ data }: { data: Record<string, any> }) {
 }
 
 /* --------------------------------------------------- categories / parallax -- */
+/**
+ * One in-flight request shared by every block on the page. Several blocks want
+ * the category tree, and each was firing its own identical request.
+ */
+let categoriesPromise: Promise<Category[]> | null = null
+
+function fetchCategories(): Promise<Category[]> {
+  if (!categoriesPromise) {
+    categoriesPromise = api.get<Category[]>('/categories').catch(() => {
+      categoriesPromise = null // let a later mount retry
+      return [] as Category[]
+    })
+  }
+  return categoriesPromise
+}
+
 function useCategories() {
   const [categories, setCategories] = useState<Category[]>([])
   const [loading, setLoading] = useState(true)
   useEffect(() => {
-    api
-      .get<Category[]>('/categories')
-      .then(setCategories)
-      .catch(() => setCategories([]))
-      .finally(() => setLoading(false))
+    let cancelled = false
+    fetchCategories()
+      .then((c) => !cancelled && setCategories(c))
+      .finally(() => !cancelled && setLoading(false))
+    return () => {
+      cancelled = true
+    }
   }, [])
   return { categories, loading }
 }

@@ -4,63 +4,10 @@ import { api } from './api'
 import type { Bootstrap, Page, Settings, NavItem } from './types'
 
 /**
- * Rendered when the API cannot be reached (offline, dev without proxy, or an
- * outage). The site degrades to a working landing page rather than a blank screen.
- *
- * Deliberately no hero_video_url: hard-coding one meant the old default video
- * painted for a moment on every load before the real one replaced it.
- */
-const FALLBACK: Bootstrap = {
-  settings: {
-    site_name: 'Chemi Colours',
-    logo_text: 'Chemi Colours',
-    hero_video_url: '',
-    contact_email: 'hello@chemicolours.com',
-    cta_label: 'Get in touch',
-    cta_href: '/contact',
-    footer_tagline: 'Dyestuff and textile chemicals for mills that cannot afford a bad batch.',
-    footer_note: `© ${new Date().getFullYear()} Chemi Colours. All rights reserved.`,
-    form_heading: 'Say hello! 👋',
-    form_intro: 'Tell us about your requirement',
-    form_success_title: "You're all set!",
-    form_success_text: 'Expect a reply within 24 hours.',
-    form_services: [
-      'Reactive Dyes', 'Disperse Dyes', 'Acid Dyes', 'Vat Dyes',
-      'Textile Auxiliaries', 'Pigment Dispersions', 'Bulk Supply',
-      'Custom Formulation', 'Other',
-    ],
-    footer_columns: [],
-  },
-  nav: [
-    { label: 'Our story', href: '/our-story' },
-    { label: 'Expertise', href: '/expertise' },
-    { label: 'Products', href: '/products' },
-    { label: 'Contact', href: '/contact' },
-  ],
-  home: {
-    slug: 'home',
-    title: 'Home',
-    blocks: [
-      {
-        type: 'hero',
-        data: {
-          headline: "We colour the world's fabric",
-          headline2: 'with dependable',
-          accent: 'dyestuff',
-          useSiteVideo: true,
-          showForm: true,
-        },
-      },
-    ],
-  },
-}
-
-/**
- * The starting state. Deliberately blank: seeding state with FALLBACK meant
- * every visitor saw the built-in menu, button label and footer text for a
- * moment before their real content replaced it. Components treat missing
- * values as "not known yet" and render nothing, so there is no flash of
- * content that was never theirs.
+ * There is no built-in copy of the site any more. Every headline, menu item,
+ * address and label comes from the database, so nothing can be shown that the
+ * owner did not write. If the API cannot be reached the site says so rather
+ * than inventing content.
  */
 const EMPTY: Bootstrap = { settings: {}, nav: [], home: null }
 
@@ -111,9 +58,9 @@ export function SiteProvider({ children }: { children: ReactNode }) {
         setOffline(false)
       })
       .catch(() => {
-        // Only now is the built-in content the best we can do.
+        // Stay empty and flag it: an honest "cannot load" beats invented copy.
         if (cancelled) return
-        setData(FALLBACK)
+        setData(EMPTY)
         setOffline(true)
       })
       .finally(() => {

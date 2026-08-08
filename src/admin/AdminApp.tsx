@@ -5,6 +5,7 @@ import {
   Inbox, LogOut, ExternalLink, Menu, X,
 } from 'lucide-react'
 import { api, setCsrf } from '../lib/api'
+import { useSite } from '../lib/site'
 import type { AuthStatus } from '../lib/types'
 import { Button, Card, Field, Input } from './ui'
 import Dashboard from './Dashboard'
@@ -15,15 +16,27 @@ import SettingsEditor from './SettingsEditor'
 import LeadsInbox from './LeadsInbox'
 
 function AuthShell({ title, subtitle, children }: { title: string; subtitle: string; children: React.ReactNode }) {
+  // The brand comes from settings like everywhere else, never a literal.
+  const { settings } = useSite()
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
       <div className="w-full max-w-sm">
         <div className="flex items-center gap-2 justify-center mb-6">
-          <svg viewBox="0 0 256 256" className="w-8 h-8" aria-hidden="true">
-            <path d="M 256 256 L 128 256 L 0 128 L 128 128 Z" fill="black" />
-            <path d="M 256 128 L 128 128 L 0 0 L 128 0 Z" fill="black" />
-          </svg>
-          <span className="font-semibold text-black">Chemi Colours</span>
+          {settings.logo_url ? (
+            <img
+              src={settings.logo_url}
+              alt={settings.site_name || ''}
+              className="h-8 w-auto max-w-[180px] object-contain"
+            />
+          ) : (
+            <svg viewBox="0 0 256 256" className="w-8 h-8" aria-hidden="true">
+              <path d="M 256 256 L 128 256 L 0 128 L 128 128 Z" fill="black" />
+              <path d="M 256 128 L 128 128 L 0 0 L 128 0 Z" fill="black" />
+            </svg>
+          )}
+          {!settings.logo_url && settings.site_name && (
+            <span className="font-semibold text-black">{settings.site_name}</span>
+          )}
         </div>
         <Card>
           <h1 className="text-lg font-semibold text-black">{title}</h1>

@@ -7,7 +7,35 @@ declare(strict_types=1);
  * and seeding only happens when a table is empty.
  */
 
+/** Bump whenever the statements below change, to re-run them once. */
+const SCHEMA_VERSION = 6;
+
+/**
+ * Cheap gate in front of the real work. Without it every single API request
+ * re-ran ~15 DDL statements plus information_schema look-ups, which was
+ * costing hundreds of milliseconds on every page load.
+ */
 function migrate(): void
+{
+    try {
+        $v = db()->query("SELECT `value` FROM settings WHERE `key` = 'schema_version'")
+            ->fetchColumn();
+        if ($v !== false && (int) $v === SCHEMA_VERSION) {
+            return;
+        }
+    } catch (Throwable) {
+        // settings table does not exist yet: fall through and build it.
+    }
+
+    migrate_run();
+
+    db()->prepare(
+        'INSERT INTO settings (`key`, `value`) VALUES (?, ?)
+         ON DUPLICATE KEY UPDATE `value` = VALUES(`value`)'
+    )->execute(['schema_version', (string) SCHEMA_VERSION]);
+}
+
+function migrate_run(): void
 {
     $pdo = db();
 
@@ -398,16 +426,18 @@ function seed_pages(): void
     add_block($home, 'stats', 1, [
         'title' => 'Trusted on the shop floor',
         'items' => [
-            ['value' => '28+', 'label' => 'Years supplying mills'],
-            ['value' => '400+', 'label' => 'Shades in catalogue'],
-            ['value' => '99.2%', 'label' => 'Batch-to-batch consistency'],
-            ['value' => '24h', 'label' => 'Technical response time'],
+            // Placeholders only. Never seed invented figures: on a live
+            // chemicals site a buyer could rely on them.
+            ['value' => '—', 'label' => 'Years supplying mills'],
+            ['value' => '—', 'label' => 'Shades in catalogue'],
+            ['value' => '—', 'label' => 'Batch-to-batch consistency'],
+            ['value' => '—', 'label' => 'Technical response time'],
         ],
     ]);
     add_block($home, 'richtext', 2, [
         'eyebrow' => 'What we do',
         'title'   => 'Colour that survives the wash test',
-        'html'    => '<p>Chemi Colours supplies reactive, disperse, acid and vat dyestuff to dyeing and finishing mills. Every drum is batch-tested for shade consistency and fastness before it leaves us, so your production floor is not the place where problems are discovered.</p>',
+        'html'    => '<p>Describe what your company supplies here, and what makes your dyestuff dependable for a mill. Replace this placeholder text from the admin panel.</p>',
     ]);
     add_block($home, 'product_grid', 3, [
         'title'    => 'Our range',
@@ -426,7 +456,7 @@ function seed_pages(): void
     add_block($story, 'pagehero', 0, [
         'eyebrow'  => 'Our story',
         'title'    => 'Built beside the dye house',
-        'subtitle' => 'Three decades of getting colour right, batch after batch.',
+        'subtitle' => 'Replace this with your own introduction.',
     ]);
     add_block($story, 'richtext', 1, [
         'html' => '<p>Chemi Colours began as a small trading operation supplying a handful of local dye houses. What set the business apart was simple: when a shade went wrong, we turned up at the mill.</p><p>That habit became the company. Today we supply dyestuff across the full technical range, but the promise has not changed — consistent colour, documented fastness, and a technical team that answers the phone.</p>',
@@ -434,10 +464,8 @@ function seed_pages(): void
     add_block($story, 'timeline', 2, [
         'title' => 'Milestones',
         'items' => [
-            ['year' => '1997', 'title' => 'Founded', 'text' => 'Started supplying reactive dyes to local cotton mills.'],
-            ['year' => '2006', 'title' => 'In-house lab', 'text' => 'Opened our shade-matching and fastness testing laboratory.'],
-            ['year' => '2014', 'title' => 'Expanded range', 'text' => 'Added disperse, acid and vat classes alongside auxiliaries.'],
-            ['year' => '2023', 'title' => 'Eco compliance', 'text' => 'Aligned the core catalogue with ZDHC and OEKO-TEX requirements.'],
+            // Dates and claims must come from the owner, not from us.
+            ['year' => 'Year', 'title' => 'Milestone', 'text' => 'Describe what happened. Edit or delete from the admin panel.'],
         ],
     ]);
 

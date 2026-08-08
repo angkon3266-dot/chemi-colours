@@ -158,7 +158,7 @@ export default function SettingsEditor() {
                 <Input
                   value={s.tagline || ''}
                   onChange={(e) => set('tagline', e.target.value)}
-                  placeholder="Dyestuff for dyeing factories"
+                  placeholder="A short line describing what you do"
                 />
               </Field>
             </div>
