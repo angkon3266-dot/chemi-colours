@@ -3,6 +3,7 @@ import { Plus, Trash2, X, ChevronUp, ChevronDown } from 'lucide-react'
 import { api } from '../lib/api'
 import { mapEmbedUrl } from '../lib/contact'
 import AccountCard from './AccountCard'
+import UsersCard from './UsersCard'
 import type { FooterColumn, MediaItem, NavItem, Settings } from '../lib/types'
 
 /** Swaps two entries in a list; used by the menu and footer re-order buttons. */
@@ -23,6 +24,7 @@ export default function SettingsEditor() {
   const [pickingVideo, setPickingVideo] = useState(false)
   const [pickingPoster, setPickingPoster] = useState(false)
   const [pickingLogo, setPickingLogo] = useState(false)
+  const [pickingOg, setPickingOg] = useState(false)
   const [serviceInput, setServiceInput] = useState('')
   const save = useSaveState()
 
@@ -667,7 +669,75 @@ export default function SettingsEditor() {
         </div>
       </Card>
 
+      <Card className="mt-4">
+        <h2 className="text-base font-semibold text-black mb-1">Search & sharing</h2>
+        <p className="text-sm text-gray-500 mb-5">
+          These control how the site looks in Google results and when someone shares a link on
+          WhatsApp or Facebook.
+        </p>
+        <div className="flex flex-col gap-4">
+          <Field
+            label="Default description"
+            hint="Used for any page without its own SEO description. Aim for about 150 characters."
+          >
+            <Textarea
+              rows={2}
+              value={s.meta_description || ''}
+              onChange={(e) => set('meta_description', e.target.value)}
+            />
+          </Field>
+
+          <Field
+            label="Share image"
+            hint="Shown as the preview picture when a link is shared. 1200×630 works best."
+          >
+            <div className="flex gap-2">
+              <Input
+                value={s.og_image_url || ''}
+                onChange={(e) => set('og_image_url', e.target.value)}
+                placeholder="https://…/share.jpg"
+              />
+              <Button type="button" variant="ghost" onClick={() => setPickingOg(true)}>
+                Browse
+              </Button>
+            </div>
+          </Field>
+          {s.og_image_url && (
+            <img
+              src={s.og_image_url}
+              alt="Share preview"
+              className="w-full max-w-sm rounded-xl border border-gray-200 object-cover aspect-[1200/630]"
+            />
+          )}
+
+          <div className="grid sm:grid-cols-2 gap-4">
+            <Field label="Google Analytics ID" hint="Looks like G-XXXXXXXXXX. Leave blank for none.">
+              <Input
+                value={s.ga_measurement_id || ''}
+                onChange={(e) => set('ga_measurement_id', e.target.value)}
+                placeholder="G-XXXXXXXXXX"
+              />
+            </Field>
+            <Field
+              label="Search Console verification"
+              hint="The content value of the meta tag Google gives you."
+            >
+              <Input
+                value={s.search_console_token || ''}
+                onChange={(e) => set('search_console_token', e.target.value)}
+              />
+            </Field>
+          </div>
+
+          <p className="text-xs text-gray-400">
+            Your sitemap is generated automatically at <code>/sitemap.xml</code> — submit that URL
+            in Google Search Console.
+          </p>
+        </div>
+      </Card>
+
       <AccountCard />
+      <UsersCard />
 
       <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 px-4 py-3 flex items-center justify-end gap-3 lg:pl-64">
         {save.node}
@@ -683,6 +753,16 @@ export default function SettingsEditor() {
           onPick={(m: MediaItem) => {
             set('hero_video_url', m.url)
             setPickingVideo(false)
+          }}
+        />
+      )}
+      {pickingOg && (
+        <MediaLibraryModal
+          kind="image"
+          onClose={() => setPickingOg(false)}
+          onPick={(m: MediaItem) => {
+            set('og_image_url', m.url)
+            setPickingOg(false)
           }}
         />
       )}

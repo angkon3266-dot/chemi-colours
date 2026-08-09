@@ -10,7 +10,8 @@ import {
 
 const BLANK: AdminProduct = {
   id: 0, slug: '', name: '', categoryId: null, ciName: '', casNo: '',
-  shadeName: '', shadeHex: '', fastnessLight: '', fastnessWash: '', fastnessRub: '',
+  form: '', strength: '', packaging: '', moq: '', hsCode: '', shelfLife: '', storage: '',
+  customSpecs: [],
   fibres: [], summary: '', description: '', application: '',
   imageId: null, galleryIds: [], specSheetId: null,
   status: 'published', featured: false, sortOrder: 0,
@@ -117,7 +118,7 @@ export function ProductsList() {
                   ) : (
                     <div
                       className="w-full h-full"
-                      style={{ backgroundColor: p.shadeHex || '#f9fafb' }}
+                      style={{ backgroundColor: '#f9fafb' }}
                     />
                   )}
                 </div>
@@ -554,33 +555,82 @@ export function ProductEditor() {
           <Field label="CAS number">
             <Input value={p.casNo} onChange={(e) => set('casNo', e.target.value)} />
           </Field>
-          <Field label="Shade name">
-            <Input value={p.shadeName} onChange={(e) => set('shadeName', e.target.value)} />
+          <Field label="Form" hint="e.g. Powder, Liquid, Granule">
+            <Input value={p.form} onChange={(e) => set('form', e.target.value)} />
           </Field>
-          <Field label="Shade colour" hint="Shown as a swatch on the product card.">
-            <div className="flex gap-2 items-center">
-              <input
-                type="color"
-                value={p.shadeHex || '#cccccc'}
-                onChange={(e) => set('shadeHex', e.target.value)}
-                className="w-12 h-10 rounded-lg border border-gray-200 bg-white cursor-pointer"
-              />
+          <Field label="Strength / concentration" hint="e.g. 150%, 100% std">
+            <Input value={p.strength} onChange={(e) => set('strength', e.target.value)} />
+          </Field>
+          <Field label="Packaging" hint="e.g. 25 kg drum, 50 kg bag">
+            <Input value={p.packaging} onChange={(e) => set('packaging', e.target.value)} />
+          </Field>
+          <Field label="Minimum order quantity">
+            <Input value={p.moq} onChange={(e) => set('moq', e.target.value)} placeholder="e.g. 100 kg" />
+          </Field>
+          <Field label="HS code">
+            <Input value={p.hsCode} onChange={(e) => set('hsCode', e.target.value)} />
+          </Field>
+          <Field label="Shelf life">
+            <Input value={p.shelfLife} onChange={(e) => set('shelfLife', e.target.value)} placeholder="e.g. 24 months" />
+          </Field>
+          <div className="sm:col-span-2">
+            <Field label="Storage conditions">
               <Input
-                value={p.shadeHex}
-                onChange={(e) => set('shadeHex', e.target.value)}
-                placeholder="#c0392b"
+                value={p.storage}
+                onChange={(e) => set('storage', e.target.value)}
+                placeholder="e.g. Keep in a cool, dry place away from direct sunlight"
               />
-            </div>
-          </Field>
-          <Field label="Light fastness" hint="e.g. 6–7">
-            <Input value={p.fastnessLight} onChange={(e) => set('fastnessLight', e.target.value)} />
-          </Field>
-          <Field label="Wash fastness">
-            <Input value={p.fastnessWash} onChange={(e) => set('fastnessWash', e.target.value)} />
-          </Field>
-          <Field label="Rub fastness">
-            <Input value={p.fastnessRub} onChange={(e) => set('fastnessRub', e.target.value)} />
-          </Field>
+            </Field>
+          </div>
+        </div>
+
+        {/* Anything the standard fields do not cover. */}
+        <div className="mt-5">
+          <span className="text-sm font-medium text-black">Your own spec rows</span>
+          <p className="text-xs text-gray-400 mt-0.5">
+            Add any label and value you like — pH, solubility, ionic character, purity. These
+            appear in the specification table on the product page.
+          </p>
+          <div className="flex flex-col gap-2 mt-2">
+            {p.customSpecs.map((row, i) => (
+              <div key={i} className="flex gap-2">
+                <Input
+                  value={row.label}
+                  onChange={(e) =>
+                    set('customSpecs', p.customSpecs.map((r, k) =>
+                      k === i ? { ...r, label: e.target.value } : r))
+                  }
+                  placeholder="Label"
+                />
+                <Input
+                  value={row.value}
+                  onChange={(e) =>
+                    set('customSpecs', p.customSpecs.map((r, k) =>
+                      k === i ? { ...r, value: e.target.value } : r))
+                  }
+                  placeholder="Value"
+                />
+                <button
+                  type="button"
+                  onClick={() => set('customSpecs', p.customSpecs.filter((_, k) => k !== i))}
+                  className="w-9 h-9 shrink-0 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 flex items-center justify-center"
+                  aria-label="Remove row"
+                >
+                  <X size={15} />
+                </button>
+              </div>
+            ))}
+            <Button
+              type="button"
+              variant="ghost"
+              className="self-start"
+              onClick={() => set('customSpecs', [...p.customSpecs, { label: '', value: '' }])}
+            >
+              <span className="inline-flex items-center gap-1.5">
+                <Plus size={15} /> Add spec row
+              </span>
+            </Button>
+          </div>
         </div>
 
         <div className="mt-4">

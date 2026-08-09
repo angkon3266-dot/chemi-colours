@@ -15,6 +15,8 @@ export type BlockType =
   | 'parallax'
   | 'director'
   | 'map'
+  | 'testimonials'
+  | 'posts'
 
 export interface Block {
   id?: number
@@ -102,9 +104,14 @@ export interface Product {
   category: string
   ciName: string
   casNo: string
-  shadeName: string
-  shadeHex: string
-  fastness: { light: string; wash: string; rub: string }
+  form: string
+  strength: string
+  packaging: string
+  moq: string
+  hsCode: string
+  shelfLife: string
+  storage: string
+  customSpecs: SpecRow[]
   fibres: string[]
   summary: string
   description: string
@@ -123,11 +130,14 @@ export interface AdminProduct {
   categoryId: number | null
   ciName: string
   casNo: string
-  shadeName: string
-  shadeHex: string
-  fastnessLight: string
-  fastnessWash: string
-  fastnessRub: string
+  form: string
+  strength: string
+  packaging: string
+  moq: string
+  hsCode: string
+  shelfLife: string
+  storage: string
+  customSpecs: SpecRow[]
   fibres: string[]
   summary: string
   description: string
@@ -199,4 +209,32 @@ export interface AuthStatus {
   needsSetup: boolean
   user: { id: number; email: string; name: string } | null
   csrf: string
+}
+
+/** A spec row the owner defines themselves on a product. */
+export interface SpecRow {
+  label: string
+  value: string
+}
+
+export interface Post {
+  id: number
+  slug: string
+  title: string
+  excerpt: string
+  body: string
+  author: string
+  cover: string
+  publishedAt: string | null
+  status: 'draft' | 'published'
+  coverId?: number | null
+}
+
+export interface AdminUser {
+  id: number
+  email: string
+  name: string
+  lastLoginAt: string | null
+  createdAt: string
+  isYou: boolean
 }

@@ -220,6 +220,33 @@ export const BLOCK_SCHEMAS: Record<BlockType, BlockSchema> = {
     ],
     defaults: { eyebrow: '', title: '', image: '', name: '', role: '', html: '', signature: '' },
   },
+  testimonials: {
+    label: 'Testimonials',
+    description: 'Quotes from the mills and factories you supply.',
+    fields: [
+      { key: 'title', label: 'Section heading', type: 'text' },
+      {
+        key: 'items', label: 'Quotes', type: 'list',
+        itemFields: [
+          { key: 'quote', label: 'Quote', type: 'textarea' },
+          { key: 'name', label: 'Person', type: 'text' },
+          { key: 'role', label: 'Role & company', type: 'text', hint: 'e.g. Head of Dyeing, ABC Textiles' },
+          { key: 'logo', label: 'Company logo (optional)', type: 'media', mediaKind: 'image' },
+        ],
+      },
+    ],
+    defaults: { title: 'What our customers say', items: [] },
+  },
+  posts: {
+    label: 'Latest journal posts',
+    description: 'Pulls the most recent published posts from the Journal.',
+    fields: [
+      { key: 'title', label: 'Section heading', type: 'text' },
+      { key: 'subtitle', label: 'Subtitle', type: 'text' },
+      { key: 'limit', label: 'How many to show', type: 'number' },
+    ],
+    defaults: { title: 'From the journal', subtitle: '', limit: 3 },
+  },
   map: {
     label: 'Google map',
     description: 'An embedded map of your location with a directions link.',
@@ -291,5 +318,5 @@ export const BLOCK_ORDER: BlockType[] = [
   'hero', 'pagehero', 'richtext', 'director',
   'category_grid', 'parallax', 'product_grid',
   'features', 'stats', 'timeline', 'gallery',
-  'cta', 'contact', 'map', 'faq', 'logos',
+  'cta', 'contact', 'map', 'faq', 'logos', 'testimonials', 'posts',
 ]

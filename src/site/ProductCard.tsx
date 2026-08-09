@@ -18,15 +18,8 @@ export default function ProductCard({ product }: { product: Product }) {
         ) : (
           <div
             className="w-full h-full"
-            style={{ backgroundColor: product.shadeHex || '#f3f4f6' }}
+            style={{ backgroundColor: '#f3f4f6' }}
             aria-hidden="true"
-          />
-        )}
-        {product.shadeHex && (
-          <span
-            className="absolute bottom-3 left-3 w-7 h-7 rounded-full border-2 border-white shadow"
-            style={{ backgroundColor: product.shadeHex }}
-            title={product.shadeName || product.shadeHex}
           />
         )}
       </div>

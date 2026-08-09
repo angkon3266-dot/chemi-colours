@@ -18,6 +18,11 @@
 
 Options -Indexes
 
+# The site root matches the "exists on disk" rule below (it is a directory), so
+# DirectoryIndex would hand back index.html untouched and the home page would be
+# the one URL with no OG tags. Point the index at the renderer instead.
+DirectoryIndex render.php index.html
+
 <IfModule mod_headers.c>
   Header always set X-Content-Type-Options "nosniff"
   Header always set X-Frame-Options "SAMEORIGIN"
@@ -58,6 +63,11 @@ Options -Indexes
   RewriteCond %{REQUEST_FILENAME} -d
   RewriteRule ^ - [L]
 
-  # Everything else is a client-side route: hand it to the SPA shell.
-  RewriteRule . /index.html [L]
+  # Generated XML sitemap.
+  RewriteRule ^sitemap\.xml$ /sitemap.php [L]
+
+  # Everything else is a client-side route. It goes through render.php rather
+  # than index.html directly, so the shell carries real title/description/OG
+  # tags — crawlers and WhatsApp previews do not run our JavaScript.
+  RewriteRule . /render.php [L]
 </IfModule>

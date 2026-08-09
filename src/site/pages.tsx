@@ -123,10 +123,15 @@ export function ProductDetail() {
     ['Category', product.category],
     ['C.I. name', product.ciName],
     ['CAS number', product.casNo],
-    ['Shade', product.shadeName],
-    ['Light fastness', product.fastness.light],
-    ['Wash fastness', product.fastness.wash],
-    ['Rub fastness', product.fastness.rub],
+    ['Form', product.form],
+    ['Strength', product.strength],
+    ['Packaging', product.packaging],
+    ['Minimum order', product.moq],
+    ['HS code', product.hsCode],
+    ['Shelf life', product.shelfLife],
+    ['Storage', product.storage],
+    // Owner-defined rows come last so they read as additions to the standard set.
+    ...product.customSpecs.map((r) => [r.label, r.value] as [string, string]),
   ].filter(([, v]) => (v || '').trim() !== '') as [string, string][]
 
   return (
@@ -151,7 +156,7 @@ export function ProductDetail() {
               ) : (
                 <div
                   className="w-full h-full"
-                  style={{ backgroundColor: product.shadeHex || '#f3f4f6' }}
+                  style={{ backgroundColor: '#f3f4f6' }}
                 />
               )}
             </div>
@@ -176,15 +181,18 @@ export function ProductDetail() {
               {product.name}
             </h1>
 
-            {product.shadeHex && (
-              <div className="mt-4 flex items-center gap-2.5">
-                <span
-                  className="w-9 h-9 rounded-full border-2 border-white shadow ring-1 ring-gray-200"
-                  style={{ backgroundColor: product.shadeHex }}
-                />
-                <span className="text-sm text-gray-500">
-                  {product.shadeName || product.shadeHex}
-                </span>
+            {(product.ciName || product.casNo) && (
+              <div className="mt-4 flex flex-wrap items-center gap-2">
+                {product.ciName && (
+                  <span className="text-xs font-medium px-2.5 py-1.5 rounded-lg bg-gray-100 text-gray-700">
+                    {product.ciName}
+                  </span>
+                )}
+                {product.casNo && (
+                  <span className="text-xs font-medium px-2.5 py-1.5 rounded-lg bg-gray-100 text-gray-700">
+                    CAS {product.casNo}
+                  </span>
+                )}
               </div>
             )}
 

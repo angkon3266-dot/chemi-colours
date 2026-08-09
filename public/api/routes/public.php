@@ -58,13 +58,14 @@ function shape_product(array $p, array $mediaById = []): array
         'category'    => $p['category_name'] ?? '',
         'ciName'      => $p['ci_name'],
         'casNo'       => $p['cas_no'],
-        'shadeName'   => $p['shade_name'],
-        'shadeHex'    => $p['shade_hex'],
-        'fastness'    => [
-            'light' => $p['fastness_light'],
-            'wash'  => $p['fastness_wash'],
-            'rub'   => $p['fastness_rub'],
-        ],
+        'form'        => $p['form'] ?? '',
+        'strength'    => $p['strength'] ?? '',
+        'packaging'   => $p['packaging'] ?? '',
+        'moq'         => $p['moq'] ?? '',
+        'hsCode'      => $p['hs_code'] ?? '',
+        'shelfLife'   => $p['shelf_life'] ?? '',
+        'storage'     => $p['storage'] ?? '',
+        'customSpecs' => decode_json_col($p['custom_specs'] ?? null),
         'fibres'      => decode_json_col($p['fibres'] ?? null),
         'summary'     => $p['summary'],
         'description' => $p['description'] ?? '',
@@ -201,6 +202,37 @@ function load_products(bool $publishedOnly = true, array $opts = []): array
     return array_map(static fn($r) => shape_product($r, $mediaById), $rows);
 }
 
+/** Journal post shaped for the client. */
+function shape_post(array $p, array $mediaById = []): array
+{
+    return [
+        'id'          => (int) $p['id'],
+        'slug'        => $p['slug'],
+        'title'       => $p['title'],
+        'excerpt'     => $p['excerpt'],
+        'body'        => $p['body'] ?? '',
+        'author'      => $p['author'],
+        'cover'       => media_url($mediaById[(int) ($p['cover_id'] ?? 0)] ?? null),
+        'publishedAt' => $p['published_at'],
+        'status'      => $p['status'],
+    ];
+}
+
+function load_posts(bool $publishedOnly = true, int $limit = 0): array
+{
+    $sql = 'SELECT * FROM posts';
+    if ($publishedOnly) {
+        $sql .= " WHERE status = 'published'";
+    }
+    $sql .= ' ORDER BY COALESCE(published_at, created_at) DESC';
+    if ($limit > 0) {
+        $sql .= ' LIMIT ' . min(100, $limit);
+    }
+    $rows = db()->query($sql)->fetchAll();
+    $mediaById = media_map(array_column($rows, 'cover_id'));
+    return array_map(static fn($r) => shape_post($r, $mediaById), $rows);
+}
+
 function load_page(string $slug): ?array
 {
     $stmt = db()->prepare("SELECT * FROM pages WHERE slug = ? AND status = 'published' LIMIT 1");
@@ -295,6 +327,20 @@ function handle_public(string $method, array $seg): void
         }
         $ids = [$row['image_id'], $row['spec_sheet_id'], ...decode_json_col($row['gallery'])];
         json_out(shape_product($row, media_map($ids)));
+    }
+
+    if ($method === 'GET' && $head === 'posts') {
+        json_out(load_posts(true, (int) ($_GET['limit'] ?? 0)));
+    }
+
+    if ($method === 'GET' && $head === 'post') {
+        $stmt = db()->prepare("SELECT * FROM posts WHERE slug = ? AND status = 'published' LIMIT 1");
+        $stmt->execute([$seg[1] ?? '']);
+        $row = $stmt->fetch();
+        if (!$row) {
+            throw new ApiError('Post not found.', 404);
+        }
+        json_out(shape_post($row, media_map([$row['cover_id']])));
     }
 
     if ($method === 'GET' && $head === 'categories') {

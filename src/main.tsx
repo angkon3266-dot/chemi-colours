@@ -6,6 +6,7 @@ import { SiteProvider } from './lib/site'
 import SiteLayout from './site/SiteLayout'
 import { DynamicPage, NotFound, ProductDetail } from './site/pages'
 import CategoryPage from './site/CategoryPage'
+import { JournalList, PostDetail } from './site/JournalPages'
 import AdminApp from './admin/AdminApp'
 
 createRoot(document.getElementById('root')!).render(
@@ -19,6 +20,8 @@ createRoot(document.getElementById('root')!).render(
           <Route element={<SiteLayout />}>
             <Route path="/" element={<DynamicPage />} />
             <Route path="/products/:slug" element={<ProductDetail />} />
+            <Route path="/journal" element={<JournalList />} />
+            <Route path="/journal/:slug" element={<PostDetail />} />
             {/* Two/three segments, so these never collide with /:slug pages. */}
             <Route path="/category/:slug" element={<CategoryPage />} />
             <Route path="/category/:slug/:sub" element={<CategoryPage />} />

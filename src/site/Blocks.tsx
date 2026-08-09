@@ -5,7 +5,8 @@ import { api } from '../lib/api'
 import { useSite } from '../lib/site'
 import { resolveCta, mapEmbedUrl, mapLinkUrl } from '../lib/contact'
 import type { CtaAction } from '../lib/contact'
-import type { Block, Category, Product } from '../lib/types'
+import type { Block, Category, Post, Product } from '../lib/types'
+import PostCard from './PostCard'
 import ContactForm from './ContactForm'
 import ProductCard from './ProductCard'
 import ParallaxCategories from './ParallaxCategories'
@@ -788,6 +789,76 @@ function MapBlock({ data }: { data: Record<string, any> }) {
   )
 }
 
+
+/* ---------------------------------------------------------- testimonials -- */
+function Testimonials({ data }: { data: Record<string, any> }) {
+  const items: any[] = Array.isArray(data.items) ? data.items : []
+  if (items.length === 0) return null
+  return (
+    <section className={SECTION}>
+      <div className={INNER}>
+        {data.title && (
+          <h2 className="text-2xl sm:text-3xl font-medium text-black mb-8">{data.title}</h2>
+        )}
+        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
+          {items.map((t, i) => (
+            <figure
+              key={i}
+              className="rounded-2xl border border-gray-200 p-5 sm:p-6 flex flex-col gap-4"
+            >
+              <blockquote className="text-gray-700 leading-relaxed">“{t.quote}”</blockquote>
+              <figcaption className="mt-auto flex items-center gap-3">
+                {t.logo && (
+                  <img src={t.logo} alt="" className="w-9 h-9 rounded-lg object-contain bg-gray-50" />
+                )}
+                <div className="min-w-0">
+                  <div className="text-sm font-semibold text-black truncate">{t.name}</div>
+                  {t.role && <div className="text-xs text-gray-500 truncate">{t.role}</div>}
+                </div>
+              </figcaption>
+            </figure>
+          ))}
+        </div>
+      </div>
+    </section>
+  )
+}
+
+/* ---------------------------------------------------------- latest posts -- */
+function PostsBlock({ data }: { data: Record<string, any> }) {
+  const [posts, setPosts] = useState<Post[]>([])
+  useEffect(() => {
+    api
+      .get<Post[]>(`/posts?limit=${Number(data.limit) || 3}`)
+      .then(setPosts)
+      .catch(() => setPosts([]))
+  }, [data.limit])
+
+  if (posts.length === 0) return null
+  return (
+    <section className={SECTION}>
+      <div className={INNER}>
+        <div className="mb-8 flex items-end justify-between gap-4 flex-wrap">
+          <div>
+            {data.title && (
+              <h2 className="text-2xl sm:text-3xl font-medium text-black">{data.title}</h2>
+            )}
+            {data.subtitle && <p className="mt-2 text-gray-500">{data.subtitle}</p>}
+          </div>
+          <Link to="/journal" className="text-sm font-semibold text-gray-700 hover:text-black">
+            All posts →
+          </Link>
+        </div>
+        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
+          {posts.map((post) => (
+            <PostCard key={post.id} post={post} />
+          ))}
+        </div>
+      </div>
+    </section>
+  )
+}
+
 /* -------------------------------------------------------------- renderer -- */
 export function BlockRenderer({ block }: { block: Block }) {
   const d = block.data || {}
@@ -824,6 +895,10 @@ export function BlockRenderer({ block }: { block: Block }) {
       return <Director data={d} />
     case 'map':
       return <MapBlock data={d} />
+    case 'testimonials':
+      return <Testimonials data={d} />
+    case 'posts':
+      return <PostsBlock data={d} />
     default:
       return null
   }

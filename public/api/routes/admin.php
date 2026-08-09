@@ -12,6 +12,7 @@ const SETTING_KEYS = [
     'footer_tagline', 'footer_note', 'footer_columns',
     'footer_address', 'footer_extra',
     'nav_items', 'nav_bg_color', 'nav_text_color', 'nav_align', 'footer_map_url',
+    'ga_measurement_id', 'search_console_token', 'og_image_url', 'meta_description',
     'social_twitter', 'social_facebook', 'social_instagram', 'social_linkedin',
     'form_services', 'form_heading', 'form_intro',
     'form_success_title', 'form_success_text',
@@ -22,7 +23,7 @@ const JSON_SETTING_KEYS = ['form_services', 'footer_columns', 'footer_extra', 'n
 const BLOCK_TYPES = [
     'hero', 'pagehero', 'richtext', 'features', 'stats', 'timeline',
     'product_grid', 'gallery', 'cta', 'contact', 'faq', 'logos',
-    'category_grid', 'parallax', 'director', 'map',
+    'category_grid', 'parallax', 'director', 'map', 'testimonials', 'posts',
 ];
 
 function handle_admin(string $method, array $seg): void
@@ -43,6 +44,8 @@ function handle_admin(string $method, array $seg): void
         'media'      => admin_media($method, $rest),
         'settings'   => admin_settings($method),
         'leads'      => admin_leads($method, $rest),
+        'posts'      => admin_posts($method, $rest),
+        'users'      => admin_users($method, $rest),
         default      => throw new ApiError('Unknown admin endpoint.', 404),
     };
 }
@@ -231,11 +234,14 @@ function admin_shape_product(array $p): array
         'categoryId'  => $p['category_id'] !== null ? (int) $p['category_id'] : null,
         'ciName'      => $p['ci_name'],
         'casNo'       => $p['cas_no'],
-        'shadeName'   => $p['shade_name'],
-        'shadeHex'    => $p['shade_hex'],
-        'fastnessLight' => $p['fastness_light'],
-        'fastnessWash'  => $p['fastness_wash'],
-        'fastnessRub'   => $p['fastness_rub'],
+        'form'        => $p['form'] ?? '',
+        'strength'    => $p['strength'] ?? '',
+        'packaging'   => $p['packaging'] ?? '',
+        'moq'         => $p['moq'] ?? '',
+        'hsCode'      => $p['hs_code'] ?? '',
+        'shelfLife'   => $p['shelf_life'] ?? '',
+        'storage'     => $p['storage'] ?? '',
+        'customSpecs' => decode_json_col($p['custom_specs'] ?? null),
         'fibres'      => decode_json_col($p['fibres']),
         'summary'     => $p['summary'],
         'description' => $p['description'] ?? '',
@@ -253,20 +259,32 @@ function product_columns(array $b): array
 {
     $fibres = is_array($b['fibres'] ?? null) ? $b['fibres'] : [];
     $gallery = is_array($b['galleryIds'] ?? null) ? array_map('intval', $b['galleryIds']) : [];
-    $hex = field($b, 'shadeHex');
-    if ($hex !== '' && !preg_match('/^#[0-9a-fA-F]{3,8}$/', $hex)) {
-        $hex = '';
+    // Owner-defined spec rows: [{label, value}, ...]
+    $custom = [];
+    foreach (is_array($b['customSpecs'] ?? null) ? $b['customSpecs'] : [] as $row) {
+        if (!is_array($row)) {
+            continue;
+        }
+        $label = plain((string) ($row['label'] ?? ''), 80);
+        $value = plain((string) ($row['value'] ?? ''), 300);
+        if ($label !== '' || $value !== '') {
+            $custom[] = ['label' => $label, 'value' => $value];
+        }
     }
+    $custom = array_slice($custom, 0, 30);
     return [
         plain(field($b, 'name', true), 200),
         ($cid = int_field($b, 'categoryId')) > 0 ? $cid : null,
         plain(field($b, 'ciName'), 120),
         plain(field($b, 'casNo'), 60),
-        plain(field($b, 'shadeName'), 120),
-        $hex,
-        plain(field($b, 'fastnessLight'), 20),
-        plain(field($b, 'fastnessWash'), 20),
-        plain(field($b, 'fastnessRub'), 20),
+        plain(field($b, 'form'), 80),
+        plain(field($b, 'strength'), 80),
+        plain(field($b, 'packaging'), 160),
+        plain(field($b, 'moq'), 80),
+        plain(field($b, 'hsCode'), 40),
+        plain(field($b, 'shelfLife'), 80),
+        plain(field($b, 'storage'), 300),
+        json_col($custom),
         json_col(array_slice(array_map(static fn($f) => plain((string) $f, 60), $fibres), 0, 30)),
         plain(field($b, 'summary'), 400),
         sanitize_html((string) ($b['description'] ?? '')),
@@ -304,10 +322,11 @@ function admin_products(string $method, array $seg): void
         $cols = product_columns($b);
         $slug = unique_slug('products', slugify(field($b, 'slug') ?: $cols[0], 'product'));
         $stmt = db()->prepare(
-            'INSERT INTO products (name, category_id, ci_name, cas_no, shade_name, shade_hex,
-                fastness_light, fastness_wash, fastness_rub, fibres, summary, description,
-                application_notes, image_id, gallery, spec_sheet_id, status, featured, sort_order, slug)
-             VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)'
+            'INSERT INTO products (name, category_id, ci_name, cas_no, form, strength,
+                packaging, moq, hs_code, shelf_life, storage, custom_specs, fibres, summary,
+                description, application_notes, image_id, gallery, spec_sheet_id, status,
+                featured, sort_order, slug)
+             VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)'
         );
         $stmt->execute([...$cols, $slug]);
         json_out(['id' => (int) db()->lastInsertId(), 'slug' => $slug], 201);
@@ -318,10 +337,10 @@ function admin_products(string $method, array $seg): void
         $cols = product_columns($b);
         $slug = unique_slug('products', slugify(field($b, 'slug') ?: $cols[0], 'product'), $id);
         $stmt = db()->prepare(
-            'UPDATE products SET name=?, category_id=?, ci_name=?, cas_no=?, shade_name=?, shade_hex=?,
-                fastness_light=?, fastness_wash=?, fastness_rub=?, fibres=?, summary=?, description=?,
-                application_notes=?, image_id=?, gallery=?, spec_sheet_id=?, status=?, featured=?,
-                sort_order=?, slug=? WHERE id=?'
+            'UPDATE products SET name=?, category_id=?, ci_name=?, cas_no=?, form=?, strength=?,
+                packaging=?, moq=?, hs_code=?, shelf_life=?, storage=?, custom_specs=?, fibres=?,
+                summary=?, description=?, application_notes=?, image_id=?, gallery=?,
+                spec_sheet_id=?, status=?, featured=?, sort_order=?, slug=? WHERE id=?'
         );
         $stmt->execute([...$cols, $slug, $id]);
         json_out(['ok' => true, 'slug' => $slug]);
@@ -666,4 +685,132 @@ function admin_leads(string $method, array $seg): void
     }
 
     throw new ApiError('Unknown leads endpoint.', 404);
+}
+
+// ------------------------------------------------------------------- posts --
+function admin_posts(string $method, array $seg): void
+{
+    $id = isset($seg[0]) && ctype_digit($seg[0]) ? (int) $seg[0] : 0;
+
+    if ($method === 'GET' && !$id) {
+        json_out(load_posts(false));
+    }
+
+    if ($method === 'GET' && $id) {
+        $stmt = db()->prepare('SELECT * FROM posts WHERE id = ?');
+        $stmt->execute([$id]);
+        $row = $stmt->fetch();
+        if (!$row) {
+            throw new ApiError('Post not found.', 404);
+        }
+        $post = shape_post($row, media_map([$row['cover_id']]));
+        $post['coverId'] = $row['cover_id'] !== null ? (int) $row['cover_id'] : null;
+        json_out($post);
+    }
+
+    if ($method === 'POST' && !$id) {
+        $b = body();
+        $title = plain(field($b, 'title', true), 250);
+        $slug = unique_slug('posts', slugify(field($b, 'slug') ?: $title, 'post'));
+        $stmt = db()->prepare(
+            'INSERT INTO posts (slug, title, excerpt, body, cover_id, author, status, published_at)
+             VALUES (?,?,?,?,?,?,?,?)'
+        );
+        $stmt->execute([...post_columns($b, $title), $slug === '' ? 'post' : $slug]);
+        json_out(['id' => (int) db()->lastInsertId(), 'slug' => $slug], 201);
+    }
+
+    if ($method === 'PUT' && $id) {
+        $b = body();
+        $title = plain(field($b, 'title', true), 250);
+        $slug = unique_slug('posts', slugify(field($b, 'slug') ?: $title, 'post'), $id);
+        $stmt = db()->prepare(
+            'UPDATE posts SET excerpt=?, body=?, cover_id=?, author=?, status=?, published_at=?,
+                    title=?, slug=? WHERE id=?'
+        );
+        $cols = post_columns($b, $title);
+        // post_columns returns [title, excerpt, body, cover, author, status, published_at]
+        $stmt->execute([
+            $cols[1], $cols[2], $cols[3], $cols[4], $cols[5], $cols[6], $cols[0], $slug, $id,
+        ]);
+        json_out(['ok' => true, 'slug' => $slug]);
+    }
+
+    if ($method === 'DELETE' && $id) {
+        db()->prepare('DELETE FROM posts WHERE id = ?')->execute([$id]);
+        json_out(['ok' => true]);
+    }
+
+    throw new ApiError('Unknown posts endpoint.', 404);
+}
+
+/** @return array{0:string,1:string,2:string,3:?int,4:string,5:string,6:?string} */
+function post_columns(array $b, string $title): array
+{
+    $status = field($b, 'status') === 'published' ? 'published' : 'draft';
+    $published = field($b, 'publishedAt');
+    if ($status === 'published' && $published === '') {
+        $published = date('Y-m-d H:i:s');
+    }
+    return [
+        $title,
+        plain(field($b, 'excerpt'), 500),
+        sanitize_html((string) ($b['body'] ?? '')),
+        ($cid = int_field($b, 'coverId')) > 0 ? $cid : null,
+        plain(field($b, 'author'), 120),
+        $status,
+        $published !== '' ? $published : null,
+    ];
+}
+
+// ------------------------------------------------------------------- users --
+function admin_users(string $method, array $seg): void
+{
+    $id = isset($seg[0]) && ctype_digit($seg[0]) ? (int) $seg[0] : 0;
+    $me = current_user();
+
+    if ($method === 'GET') {
+        json_out(array_map(static fn($u) => [
+            'id'          => (int) $u['id'],
+            'email'       => $u['email'],
+            'name'        => $u['name'],
+            'lastLoginAt' => $u['last_login_at'],
+            'createdAt'   => $u['created_at'],
+            'isYou'       => (int) $u['id'] === (int) ($me['id'] ?? 0),
+        ], db()->query('SELECT * FROM users ORDER BY created_at ASC')->fetchAll()));
+    }
+
+    if ($method === 'POST') {
+        $b = body();
+        $email = field($b, 'email', true);
+        $password = field($b, 'password', true);
+        if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            throw new ApiError('Enter a valid email address.', 422);
+        }
+        if (strlen($password) < 10) {
+            throw new ApiError('Password must be at least 10 characters.', 422);
+        }
+        $exists = db()->prepare('SELECT id FROM users WHERE email = ? LIMIT 1');
+        $exists->execute([$email]);
+        if ($exists->fetch()) {
+            throw new ApiError('That email address is already in use.', 409);
+        }
+        db()->prepare('INSERT INTO users (email, password_hash, name) VALUES (?,?,?)')
+            ->execute([$email, password_hash($password, PASSWORD_DEFAULT), plain(field($b, 'name'), 120)]);
+        json_out(['id' => (int) db()->lastInsertId()], 201);
+    }
+
+    if ($method === 'DELETE' && $id) {
+        // Never let an account remove itself, and never leave the site locked out.
+        if ($id === (int) ($me['id'] ?? 0)) {
+            throw new ApiError('You cannot remove your own account.', 409);
+        }
+        if (user_count() <= 1) {
+            throw new ApiError('There must be at least one administrator.', 409);
+        }
+        db()->prepare('DELETE FROM users WHERE id = ?')->execute([$id]);
+        json_out(['ok' => true]);
+    }
+
+    throw new ApiError('Unknown users endpoint.', 404);
 }

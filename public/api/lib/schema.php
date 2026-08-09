@@ -8,7 +8,7 @@ declare(strict_types=1);
  */
 
 /** Bump whenever the statements below change, to re-run them once. */
-const SCHEMA_VERSION = 7;
+const SCHEMA_VERSION = 8;
 
 /**
  * Cheap gate in front of the real work. Without it every single API request
@@ -133,6 +133,21 @@ function migrate_run(): void
         INDEX cat (category_id)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
 
+    $pdo->exec("CREATE TABLE IF NOT EXISTS posts (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        slug VARCHAR(180) NOT NULL UNIQUE,
+        title VARCHAR(250) NOT NULL,
+        excerpt VARCHAR(500) NOT NULL DEFAULT '',
+        body LONGTEXT NULL,
+        cover_id INT NULL,
+        author VARCHAR(120) NOT NULL DEFAULT '',
+        status ENUM('draft','published') NOT NULL DEFAULT 'draft',
+        published_at DATETIME NULL,
+        created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        INDEX status_date (status, published_at)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+
     $pdo->exec("CREATE TABLE IF NOT EXISTS leads (
         id INT AUTO_INCREMENT PRIMARY KEY,
         name VARCHAR(200) NOT NULL DEFAULT '',
@@ -152,6 +167,20 @@ function migrate_run(): void
     add_column('categories', 'image_id', 'INT NULL');
     add_column('categories', 'summary', "VARCHAR(400) NOT NULL DEFAULT ''");
     add_column('leads', 'phone', "VARCHAR(40) NOT NULL DEFAULT ''");
+
+    // Supply-side specs. This is a chemicals supply business, not a dye house:
+    // shade and fastness belong to the mill's lab, packaging and MOQ do not.
+    // The old colour columns are left untouched so nothing already entered is
+    // lost, but no screen reads them now.
+    add_column('products', 'form', "VARCHAR(80) NOT NULL DEFAULT ''");
+    add_column('products', 'strength', "VARCHAR(80) NOT NULL DEFAULT ''");
+    add_column('products', 'packaging', "VARCHAR(160) NOT NULL DEFAULT ''");
+    add_column('products', 'moq', "VARCHAR(80) NOT NULL DEFAULT ''");
+    add_column('products', 'hs_code', "VARCHAR(40) NOT NULL DEFAULT ''");
+    add_column('products', 'shelf_life', "VARCHAR(80) NOT NULL DEFAULT ''");
+    add_column('products', 'storage', "VARCHAR(300) NOT NULL DEFAULT ''");
+    // Free-form rows the owner defines: [{label, value}, ...]
+    add_column('products', 'custom_specs', 'LONGTEXT NULL');
 
     seed_settings();
     seed_categories();
@@ -284,7 +313,7 @@ function upgrade_products_page_once(): void
 /** Adds a column only when it is missing, so migrate() stays idempotent. */
 function add_column(string $table, string $column, string $definition): void
 {
-    $allowed = ['categories', 'products', 'leads', 'pages', 'media', 'blocks'];
+    $allowed = ['categories', 'products', 'leads', 'pages', 'media', 'blocks', 'posts'];
     if (!in_array($table, $allowed, true) || !preg_match('/^[a-z_]+$/', $column)) {
         throw new ApiError('Bad migration target.', 500);
     }
@@ -358,6 +387,10 @@ function seed_settings(): void
     setting_default('nav_items', json_encode([]));
     setting_default('nav_bg_color', '#ffffff');
     setting_default('nav_align', 'left');
+    setting_default('ga_measurement_id', '');
+    setting_default('search_console_token', '');
+    setting_default('og_image_url', '');
+    setting_default('meta_description', '');
     setting_default('nav_text_color', '#1f2937');
     setting_default('footer_map_url', '');
     setting_default('hero_video_url', 'https://d8j0ntlcm91z4.cloudfront.net/user_38xzZboKViGWJOttwIXH07lWA1P/hf_20260602_150901_c45b90ec-18d7-42ff-90e2-b95d7109e330.mp4');
