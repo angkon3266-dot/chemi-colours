@@ -64,10 +64,13 @@ function Hero({ data }: { data: Record<string, any> }) {
       )}
       <div className="absolute inset-0 bg-black/20" />
 
-      {/* Free-floating placements. `top-*` clears the fixed menu bar. */}
+      {/* Free-floating placements. `top-*` clears the fixed menu bar.
+          pointer-events-none is essential: the centred variant is a full-size
+          `inset-0` layer above the content, and without it the wrapper
+          swallowed every click in the hero — form toggle, inputs and all. */}
       {showCta && ctaPosition !== 'headline' && (
         <div
-          className={`absolute z-20 px-4 sm:px-6 md:px-8 ${
+          className={`absolute z-20 px-4 sm:px-6 md:px-8 pointer-events-none ${
             CTA_POSITIONS[ctaPosition] ?? CTA_POSITIONS.center
           }`}
         >
@@ -129,7 +132,9 @@ function HeroCta({ data }: { data: Record<string, any> }) {
   const style = CTA_STYLES[data.ctaStyle as string] || CTA_STYLES.white
   // Only the in-flow placement needs the gap under the headline.
   const spacing = (data.ctaPosition || 'headline') === 'headline' ? 'mt-7' : ''
-  const cls = `${spacing} inline-flex items-center gap-2 text-sm font-semibold px-6 py-3.5 rounded-2xl transition-colors shadow-lg ${style}`
+  // pointer-events-auto re-enables clicks on the button itself, since the
+  // free-floating wrapper deliberately lets clicks pass through.
+  const cls = `${spacing} pointer-events-auto inline-flex items-center gap-2 text-sm font-semibold px-6 py-3.5 rounded-2xl transition-colors shadow-lg ${style}`
 
   if (scroll) {
     return (
