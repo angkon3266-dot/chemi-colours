@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { MapPin } from 'lucide-react'
 import { api } from '../lib/api'
 import { useSite } from '../lib/site'
@@ -294,10 +294,40 @@ function Timeline({ data }: { data: Record<string, any> }) {
 function ProductGrid({ data }: { data: Record<string, any> }) {
   const [products, setProducts] = useState<Product[]>([])
   const [categories, setCategories] = useState<Category[]>([])
-  const [selected, setSelected] = useState<string[]>([])
   const [loading, setLoading] = useState(true)
 
   const showFilter = !!data.showFilter
+
+  // The mega menu and category dropdowns link straight here with
+  // ?categories=slug, so the filter has to read the URL, not just local
+  // clicks — and write back to it so the selection survives a refresh,
+  // the back button, and is shareable.
+  const [searchParams, setSearchParams] = useSearchParams()
+  const [selected, setSelectedState] = useState<string[]>(() =>
+    showFilter ? (searchParams.get('categories')?.split(',').filter(Boolean) ?? []) : []
+  )
+  const urlCategories = searchParams.get('categories')
+
+  useEffect(() => {
+    if (!showFilter) return
+    const next = urlCategories ? urlCategories.split(',').filter(Boolean) : []
+    setSelectedState((prev) => (prev.join(',') === next.join(',') ? prev : next))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [urlCategories, showFilter])
+
+  const setSelected = (next: string[]) => {
+    setSelectedState(next)
+    if (!showFilter) return
+    setSearchParams(
+      (prev) => {
+        const p = new URLSearchParams(prev)
+        if (next.length) p.set('categories', next.join(','))
+        else p.delete('categories')
+        return p
+      },
+      { replace: true }
+    )
+  }
 
   useEffect(() => {
     const params = new URLSearchParams()

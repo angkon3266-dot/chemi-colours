@@ -88,10 +88,21 @@ export default function MenuEditor({
                 />
                 <Select
                   value={type}
-                  onChange={(e) => patch(i, { type: e.target.value as NavItem['type'] })}
+                  onChange={(e) => {
+                    const next = e.target.value as NavItem['type']
+                    // Clear the fields the previous type owned, so switching
+                    // back and forth never leaves stale data behind.
+                    patch(i, {
+                      type: next,
+                      categorySlug: next === 'category' ? item.categorySlug : undefined,
+                      children: next === 'manual' ? item.children : undefined,
+                      href: next === 'all-categories' ? '/products' : item.href,
+                    })
+                  }}
                 >
                   <option value="link">Plain link</option>
                   <option value="category">Dropdown from a category</option>
+                  <option value="all-categories">Dropdown of all categories</option>
                   <option value="manual">Dropdown of my own links</option>
                 </Select>
               </div>
@@ -126,13 +137,16 @@ export default function MenuEditor({
             {type === 'category' ? (
               <Field
                 label="Which category"
-                hint="Its sub-categories and products appear in the dropdown automatically."
+                hint="Its sub-categories appear in the dropdown; picking one goes to the filtered product list."
               >
                 <Select
                   value={item.categorySlug || ''}
                   onChange={(e) => {
                     const slug = e.target.value
-                    patch(i, { categorySlug: slug, href: slug ? `/category/${slug}` : '/products' })
+                    patch(i, {
+                      categorySlug: slug,
+                      href: slug ? `/products?categories=${slug}` : '/products',
+                    })
                   }}
                 >
                   <option value="">Choose a category…</option>
@@ -143,6 +157,12 @@ export default function MenuEditor({
                   ))}
                 </Select>
               </Field>
+            ) : type === 'all-categories' ? (
+              <p className="text-sm text-gray-500 bg-gray-50 rounded-xl px-3 py-2.5">
+                Every category is listed automatically, with its sub-categories in a flyout.
+                Nothing to configure here — add or edit categories under{' '}
+                <span className="font-medium text-gray-700">Products → Categories</span>.
+              </p>
             ) : type === 'manual' ? (
               <div className="flex flex-col gap-2">
                 <div className="flex items-baseline justify-between">

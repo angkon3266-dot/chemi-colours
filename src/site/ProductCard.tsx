@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom'
 import type { Product } from '../lib/types'
+import ProductPlaceholder from './ProductPlaceholder'
 
 export default function ProductCard({ product }: { product: Product }) {
   return (
@@ -16,11 +17,7 @@ export default function ProductCard({ product }: { product: Product }) {
             className="w-full h-full object-cover group-hover:scale-[1.03] transition-transform duration-500"
           />
         ) : (
-          <div
-            className="w-full h-full"
-            style={{ backgroundColor: '#f3f4f6' }}
-            aria-hidden="true"
-          />
+          <ProductPlaceholder name={product.name} category={product.category} />
         )}
       </div>
 

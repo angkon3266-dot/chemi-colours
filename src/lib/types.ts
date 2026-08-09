@@ -51,11 +51,13 @@ export interface NavItem {
   label: string
   href: string
   /**
-   * 'link'     — a plain link (default, and what older saved menus are)
-   * 'category' — dropdown built automatically from a category
-   * 'manual'   — dropdown of links written by hand
+   * 'link'           — a plain link (default, and what older saved menus are)
+   * 'category'       — dropdown built automatically from one category
+   * 'all-categories' — dropdown listing every top-level category, each
+   *                     opening onto its own sub-categories
+   * 'manual'         — dropdown of links written by hand
    */
-  type?: 'link' | 'category' | 'manual'
+  type?: 'link' | 'category' | 'all-categories' | 'manual'
   categorySlug?: string
   children?: { label: string; href: string }[]
 }

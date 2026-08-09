@@ -58,6 +58,56 @@ function NavLink({
   )
 }
 
+/** A category's sub-categories all link straight to the filtered product list. */
+function categoryHref(slug: string) {
+  return `/products?categories=${encodeURIComponent(slug)}`
+}
+
+/** One expandable category row for the "all categories" mobile accordion. */
+function MobileCategoryRow({
+  category,
+  onNavigate,
+}: {
+  category: MenuCategory
+  onNavigate: () => void
+}) {
+  const [open, setOpen] = useState(false)
+  return (
+    <div>
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        aria-expanded={open}
+        className="w-full flex items-center justify-between gap-2 text-sm text-gray-700 hover:text-black py-2 px-3"
+      >
+        {category.name}
+        <ChevronDown size={13} className={`transition-transform shrink-0 ${open ? 'rotate-180' : ''}`} />
+      </button>
+      {open && (
+        <div className="pl-4 pb-1 flex flex-col">
+          {category.children.map((sub) => (
+            <Link
+              key={sub.id}
+              to={categoryHref(sub.slug)}
+              onClick={onNavigate}
+              className="text-sm text-gray-500 hover:text-black py-1.5 px-3"
+            >
+              {sub.name}
+            </Link>
+          ))}
+          <Link
+            to={categoryHref(category.slug)}
+            onClick={onNavigate}
+            className="text-sm font-medium text-gray-700 hover:text-black py-1.5 px-3"
+          >
+            View all {category.name}
+          </Link>
+        </div>
+      )}
+    </div>
+  )
+}
+
 /** Mobile menu row: a link, or a tap-to-expand list of children. */
 function MobileNavEntry({
   item,
@@ -73,15 +123,37 @@ function MobileNavEntry({
   const [open, setOpen] = useState(false)
   const category = item.type === 'category' ? tree.find((c) => c.slug === item.categorySlug) : undefined
   const manual = item.type === 'manual' ? item.children ?? [] : []
+  const showAll = item.type === 'all-categories' && tree.length > 0
+
+  // "All categories" needs its own nested accordion, not a flat link list.
+  if (showAll) {
+    return (
+      <div className="rounded-xl">
+        <button
+          type="button"
+          onClick={() => setOpen((o) => !o)}
+          aria-expanded={open}
+          className="w-full px-3 py-2 flex items-center justify-between gap-2 text-sm font-medium hover:bg-black/5 rounded-xl"
+          style={{ color: textColor }}
+        >
+          {item.label}
+          <ChevronDown size={15} className={`transition-transform ${open ? 'rotate-180' : ''}`} />
+        </button>
+        {open && (
+          <div className="flex flex-col">
+            {tree.map((c) => (
+              <MobileCategoryRow key={c.id} category={c} onNavigate={onNavigate} />
+            ))}
+          </div>
+        )}
+      </div>
+    )
+  }
 
   const links: { label: string; href: string }[] = category
     ? [
-        ...category.children.map((sub) => ({
-          label: sub.name,
-          href: `/category/${category.slug}/${sub.slug}`,
-        })),
-        ...category.products.map((p) => ({ label: p.name, href: `/products/${p.slug}` })),
-        { label: `View all ${category.name}`, href: `/category/${category.slug}` },
+        ...category.children.map((sub) => ({ label: sub.name, href: categoryHref(sub.slug) })),
+        { label: `View all ${category.name}`, href: categoryHref(category.slug) },
       ]
     : manual
 
@@ -127,7 +199,7 @@ export default function Navbar({ variant = 'overlay' }: { variant?: 'overlay' | 
   const { nav, settings } = useSite()
   const [menuOpen, setMenuOpen] = useState(false)
   // Only fetch the category tree when a menu entry actually needs it.
-  const needsTree = nav.some((i) => i.type === 'category')
+  const needsTree = nav.some((i) => i.type === 'category' || i.type === 'all-categories')
   const tree = useMenuTree(needsTree)
   const location = useLocation()
 

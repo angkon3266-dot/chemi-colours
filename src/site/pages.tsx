@@ -8,6 +8,7 @@ import { Blocks } from './Blocks'
 import ContactForm from './ContactForm'
 import ContactActions from './ContactActions'
 import ProductCard from './ProductCard'
+import ProductPlaceholder from './ProductPlaceholder'
 
 function useDocTitle(title?: string) {
   const { settings } = useSite()
@@ -286,7 +287,7 @@ function ProductGallery({ product }: { product: Product }) {
         {current ? (
           <img src={current} alt={product.name} className="w-full h-full object-cover" />
         ) : (
-          <div className="w-full h-full bg-gray-100" />
+          <ProductPlaceholder name={product.name} category={product.category} />
         )}
       </div>
 
