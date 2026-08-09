@@ -46,6 +46,7 @@ function handle_admin(string $method, array $seg): void
         'leads'      => admin_leads($method, $rest),
         'posts'      => admin_posts($method, $rest),
         'users'      => admin_users($method, $rest),
+        'analytics'  => admin_analytics($method),
         default      => throw new ApiError('Unknown admin endpoint.', 404),
     };
 }
@@ -813,4 +814,14 @@ function admin_users(string $method, array $seg): void
     }
 
     throw new ApiError('Unknown users endpoint.', 404);
+}
+
+// --------------------------------------------------------------- analytics --
+function admin_analytics(string $method): void
+{
+    if ($method !== 'GET') {
+        throw new ApiError('Unknown analytics endpoint.', 404);
+    }
+    require_once __DIR__ . '/../lib/analytics.php';
+    json_out(analytics_summary((int) ($_GET['days'] ?? 30)));
 }

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link, NavLink, Route, Routes, useNavigate } from 'react-router-dom'
 import {
   LayoutDashboard, FileStack, Package, Image, Settings as SettingsIcon,
-  Inbox, LogOut, ExternalLink, Menu, X, Newspaper,
+  Inbox, LogOut, ExternalLink, Menu, X, Newspaper, BarChart3,
 } from 'lucide-react'
 import { api, setCsrf } from '../lib/api'
 import { useSite } from '../lib/site'
@@ -15,6 +15,7 @@ import MediaPage from './MediaPage'
 import SettingsEditor from './SettingsEditor'
 import LeadsInbox from './LeadsInbox'
 import { PostsList, PostEditor } from './JournalEditor'
+import Analytics from './Analytics'
 
 function AuthShell({ title, subtitle, children }: { title: string; subtitle: string; children: React.ReactNode }) {
   // The brand comes from settings like everywhere else, never a literal.
@@ -180,6 +181,7 @@ const NAV = [
   { to: '/admin/media', label: 'Media', Icon: Image },
   { to: '/admin/journal', label: 'Journal', Icon: Newspaper },
   { to: '/admin/leads', label: 'Enquiries', Icon: Inbox },
+  { to: '/admin/visitors', label: 'Visitors', Icon: BarChart3 },
   { to: '/admin/settings', label: 'Settings', Icon: SettingsIcon },
 ]
 
@@ -273,6 +275,7 @@ function AdminLayout({ user, onLogout }: { user: AuthStatus['user']; onLogout: (
             <Route path="journal" element={<PostsList />} />
             <Route path="journal/:id" element={<PostEditor />} />
             <Route path="leads" element={<LeadsInbox />} />
+            <Route path="visitors" element={<Analytics />} />
             <Route path="settings" element={<SettingsEditor />} />
           </Routes>
         </main>

@@ -8,7 +8,7 @@ declare(strict_types=1);
  */
 
 /** Bump whenever the statements below change, to re-run them once. */
-const SCHEMA_VERSION = 8;
+const SCHEMA_VERSION = 9;
 
 /**
  * Cheap gate in front of the real work. Without it every single API request
@@ -148,6 +148,21 @@ function migrate_run(): void
         INDEX status_date (status, published_at)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
 
+    // First-party traffic log. No cookies and no third party: the visitor is
+    // identified only by a salted daily hash, which cannot be reversed to an IP
+    // and cannot follow anyone between days.
+    $pdo->exec("CREATE TABLE IF NOT EXISTS pageviews (
+        id BIGINT AUTO_INCREMENT PRIMARY KEY,
+        path VARCHAR(300) NOT NULL DEFAULT '',
+        referrer_host VARCHAR(190) NOT NULL DEFAULT '',
+        visitor_hash CHAR(64) NOT NULL DEFAULT '',
+        device VARCHAR(20) NOT NULL DEFAULT '',
+        created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        INDEX created (created_at),
+        INDEX path_created (path, created_at),
+        INDEX visitor (visitor_hash)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+
     $pdo->exec("CREATE TABLE IF NOT EXISTS leads (
         id INT AUTO_INCREMENT PRIMARY KEY,
         name VARCHAR(200) NOT NULL DEFAULT '',
@@ -196,6 +211,8 @@ function migrate_run(): void
     upgrade_products_page_once();
     add_home_highlights();
     enable_hero_cta_once();
+    add_products_faq_once();
+    add_journal_once();
 }
 
 /**
@@ -313,7 +330,7 @@ function upgrade_products_page_once(): void
 /** Adds a column only when it is missing, so migrate() stays idempotent. */
 function add_column(string $table, string $column, string $definition): void
 {
-    $allowed = ['categories', 'products', 'leads', 'pages', 'media', 'blocks', 'posts'];
+    $allowed = ['categories', 'products', 'leads', 'pages', 'media', 'blocks', 'posts', 'pageviews'];
     if (!in_array($table, $allowed, true) || !preg_match('/^[a-z_]+$/', $column)) {
         throw new ApiError('Bad migration target.', 500);
     }
@@ -572,4 +589,103 @@ function add_block(int $pageId, string $type, int $order, array $data): void
         'INSERT INTO blocks (page_id, type, sort_order, visible, data) VALUES (?, ?, ?, 1, ?)'
     );
     $stmt->execute([$pageId, $type, $order, json_col($data)]);
+}
+
+/**
+ * FAQ on the Products page, where a buyer is already weighing up an order.
+ *
+ * Seeded hidden and with placeholder answers on purpose: MOQ, lead time and
+ * payment terms are commercial facts only the owner knows, and inventing them
+ * on a live trading site would be worse than having no FAQ at all. Fill the
+ * answers in, then switch the block on.
+ */
+function add_products_faq_once(): void
+{
+    if (db()->query("SELECT `value` FROM settings WHERE `key` = 'products_faq_v1'")->fetchColumn() !== false) {
+        return;
+    }
+    db()->prepare('INSERT IGNORE INTO settings (`key`, `value`) VALUES (?, ?)')
+        ->execute(['products_faq_v1', '1']);
+
+    $pageId = db()->query("SELECT id FROM pages WHERE slug = 'products' LIMIT 1")->fetchColumn();
+    if ($pageId === false) {
+        return;
+    }
+    $pageId = (int) $pageId;
+
+    $exists = db()->prepare("SELECT COUNT(*) FROM blocks WHERE page_id = ? AND type = 'faq'");
+    $exists->execute([$pageId]);
+    if ((int) $exists->fetchColumn() > 0) {
+        return;
+    }
+
+    $next = (int) db()->query("SELECT COALESCE(MAX(sort_order), -1) + 1 FROM blocks WHERE page_id = $pageId")
+        ->fetchColumn();
+
+    $answer = 'Write your answer here, then switch this block on.';
+    db()->prepare(
+        'INSERT INTO blocks (page_id, type, sort_order, visible, data) VALUES (?, ?, ?, 0, ?)'
+    )->execute([
+        $pageId,
+        'faq',
+        $next,
+        json_col([
+            'title' => 'Frequently asked questions',
+            'items' => [
+                ['q' => 'What is your minimum order quantity?', 'a' => $answer],
+                ['q' => 'What packaging sizes do you supply?', 'a' => $answer],
+                ['q' => 'Do you provide TDS and MSDS documents?', 'a' => $answer],
+                ['q' => 'What is your typical lead time?', 'a' => $answer],
+                ['q' => 'Can I get a sample before ordering in bulk?', 'a' => $answer],
+                ['q' => 'What are your payment terms?', 'a' => $answer],
+                ['q' => 'Do you deliver outside Dhaka?', 'a' => $answer],
+            ],
+        ]),
+    ]);
+}
+
+/**
+ * Puts the journal in the menu. It is registered as a published page purely so
+ * it joins the page-derived navigation; the /journal route renders the article
+ * list, and render.php picks up this row for the page title and description.
+ */
+function add_journal_once(): void
+{
+    if (db()->query("SELECT `value` FROM settings WHERE `key` = 'journal_nav_v1'")->fetchColumn() !== false) {
+        return;
+    }
+    db()->prepare('INSERT IGNORE INTO settings (`key`, `value`) VALUES (?, ?)')
+        ->execute(['journal_nav_v1', '1']);
+
+    if (db()->query("SELECT id FROM pages WHERE slug = 'journal' LIMIT 1")->fetchColumn() === false) {
+        $order = (int) db()->query('SELECT COALESCE(MAX(nav_order), 0) + 1 FROM pages')->fetchColumn();
+        db()->prepare(
+            "INSERT INTO pages (slug, title, nav_label, nav_order, in_nav, status, meta_title,
+                                meta_description)
+             VALUES ('journal', 'Journal', 'Journal', ?, 1, 'published', 'Journal', ?)"
+        )->execute([$order, 'Articles and updates from our team.']);
+    }
+
+    // Latest posts on the home page. The block renders nothing until something
+    // is published, so it is safe to switch on now.
+    $homeId = db()->query('SELECT id FROM pages WHERE is_home = 1 LIMIT 1')->fetchColumn();
+    if ($homeId === false) {
+        return;
+    }
+    $homeId = (int) $homeId;
+    $has = db()->prepare("SELECT COUNT(*) FROM blocks WHERE page_id = ? AND type = 'posts'");
+    $has->execute([$homeId]);
+    if ((int) $has->fetchColumn() > 0) {
+        return;
+    }
+    $next = (int) db()->query("SELECT COALESCE(MAX(sort_order), -1) + 1 FROM blocks WHERE page_id = $homeId")
+        ->fetchColumn();
+    db()->prepare(
+        'INSERT INTO blocks (page_id, type, sort_order, visible, data) VALUES (?, ?, ?, 1, ?)'
+    )->execute([
+        $homeId,
+        'posts',
+        $next,
+        json_col(['title' => 'From the journal', 'subtitle' => '', 'limit' => 3]),
+    ]);
 }

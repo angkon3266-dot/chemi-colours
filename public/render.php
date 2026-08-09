@@ -23,11 +23,14 @@ $html = (string) file_get_contents($shell);
 try {
     require __DIR__ . '/api/lib/bootstrap.php';
     require __DIR__ . '/api/lib/schema.php';
+    require __DIR__ . '/api/lib/analytics.php';
     migrate(); // no-op once the stored schema version matches
 
     $path = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/';
     $path = '/' . trim($path, '/');
     $seg = array_values(array_filter(explode('/', trim($path, '/')), static fn($s) => $s !== ''));
+
+    record_pageview($path);
 
     $settings = [];
     foreach (db()->query('SELECT `key`, `value` FROM settings')->fetchAll() as $r) {
