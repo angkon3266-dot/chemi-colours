@@ -167,7 +167,8 @@ function slugify(string $text, string $fallback = 'item'): string
 /** Ensure a slug is unique within a table, appending -2, -3 ... as needed. */
 function unique_slug(string $table, string $slug, ?int $ignoreId = null): string
 {
-    $allowed = ['pages', 'products', 'categories'];
+    // Whitelisted because the name is interpolated into the SQL below.
+    $allowed = ['pages', 'products', 'categories', 'posts'];
     if (!in_array($table, $allowed, true)) {
         throw new ApiError('Bad table.', 500);
     }

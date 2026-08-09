@@ -10,6 +10,7 @@ import PostCard from './PostCard'
 import ContactForm from './ContactForm'
 import ProductCard from './ProductCard'
 import ParallaxCategories from './ParallaxCategories'
+import ProductFilter from './ProductFilter'
 
 const SECTION = 'py-12 sm:py-16 px-4 sm:px-6'
 const INNER = 'max-w-6xl mx-auto'
@@ -293,7 +294,7 @@ function Timeline({ data }: { data: Record<string, any> }) {
 function ProductGrid({ data }: { data: Record<string, any> }) {
   const [products, setProducts] = useState<Product[]>([])
   const [categories, setCategories] = useState<Category[]>([])
-  const [active, setActive] = useState('')
+  const [selected, setSelected] = useState<string[]>([])
   const [loading, setLoading] = useState(true)
 
   const showFilter = !!data.showFilter
@@ -301,16 +302,20 @@ function ProductGrid({ data }: { data: Record<string, any> }) {
   useEffect(() => {
     const params = new URLSearchParams()
     if (data.mode === 'featured') params.set('featured', '1')
-    if (active) params.set('category', active)
+    if (selected.length) params.set('categories', selected.join(','))
     if (data.limit) params.set('limit', String(data.limit))
 
     setLoading(true)
+    let cancelled = false
     api
       .get<Product[]>(`/products?${params.toString()}`)
-      .then(setProducts)
-      .catch(() => setProducts([]))
-      .finally(() => setLoading(false))
-  }, [data.mode, data.limit, active])
+      .then((p) => !cancelled && setProducts(p))
+      .catch(() => !cancelled && setProducts([]))
+      .finally(() => !cancelled && setLoading(false))
+    return () => {
+      cancelled = true
+    }
+  }, [data.mode, data.limit, selected])
 
   useEffect(() => {
     if (!showFilter) return
@@ -320,6 +325,32 @@ function ProductGrid({ data }: { data: Record<string, any> }) {
       cancelled = true
     }
   }, [showFilter])
+
+  const grid = loading ? (
+    <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
+      {[0, 1, 2].map((i) => (
+        <div key={i} className="rounded-2xl border border-gray-200 overflow-hidden">
+          <div className="aspect-[4/3] bg-gray-100 animate-pulse" />
+          <div className="p-4 space-y-2">
+            <div className="h-3 w-20 bg-gray-100 rounded animate-pulse" />
+            <div className="h-4 w-3/4 bg-gray-100 rounded animate-pulse" />
+          </div>
+        </div>
+      ))}
+    </div>
+  ) : products.length === 0 ? (
+    <p className="text-gray-500 text-sm">
+      {selected.length > 0
+        ? 'No products match these filters.'
+        : 'No products to show yet. Add them from the admin panel.'}
+    </p>
+  ) : (
+    <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
+      {products.map((p) => (
+        <ProductCard key={p.id} product={p} />
+      ))}
+    </div>
+  )
 
   return (
     <section className={SECTION}>
@@ -333,58 +364,31 @@ function ProductGrid({ data }: { data: Record<string, any> }) {
           </div>
         )}
 
-        {showFilter && categories.length > 0 && (
-          <div className="flex flex-wrap gap-1.5 mb-7">
-            <button
-              type="button"
-              onClick={() => setActive('')}
-              className={`text-xs font-medium px-3 py-2 rounded-lg border transition-all ${
-                active === ''
-                  ? 'bg-gray-100 text-black border-black'
-                  : 'bg-white text-gray-700 border-gray-200 hover:border-gray-400'
-              }`}
-            >
-              All
-            </button>
-            {categories.map((c) => (
-              <button
-                key={c.id}
-                type="button"
-                onClick={() => setActive(c.slug)}
-                className={`text-xs font-medium px-3 py-2 rounded-lg border transition-all ${
-                  active === c.slug
-                    ? 'bg-gray-100 text-black border-black'
-                    : 'bg-white text-gray-700 border-gray-200 hover:border-gray-400'
-                }`}
-              >
-                {c.name}
-              </button>
-            ))}
-          </div>
-        )}
-
-        {loading ? (
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
-            {[0, 1, 2].map((i) => (
-              <div key={i} className="rounded-2xl border border-gray-200 overflow-hidden">
-                <div className="aspect-[4/3] bg-gray-100 animate-pulse" />
-                <div className="p-4 space-y-2">
-                  <div className="h-3 w-20 bg-gray-100 rounded animate-pulse" />
-                  <div className="h-4 w-3/4 bg-gray-100 rounded animate-pulse" />
-                </div>
+        {showFilter && categories.length > 0 ? (
+          <div className="flex gap-8 lg:gap-12">
+            <ProductFilter
+              categories={categories}
+              selected={selected}
+              onChange={setSelected}
+              resultCount={products.length}
+            />
+            <div className="flex-1 min-w-0">
+              <div className="lg:hidden mb-5">
+                <ProductFilter
+                  categories={categories}
+                  selected={selected}
+                  onChange={setSelected}
+                  resultCount={products.length}
+                />
               </div>
-            ))}
+              <p className="text-sm text-gray-400 mb-4">
+                {loading ? 'Loading…' : `${products.length} product${products.length === 1 ? '' : 's'}`}
+              </p>
+              {grid}
+            </div>
           </div>
-        ) : products.length === 0 ? (
-          <p className="text-gray-500 text-sm">
-            No products to show yet. Add them from the admin panel.
-          </p>
         ) : (
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
-            {products.map((p) => (
-              <ProductCard key={p.id} product={p} />
-            ))}
-          </div>
+          grid
         )}
       </div>
     </section>

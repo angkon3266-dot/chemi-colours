@@ -157,6 +157,16 @@ function load_products(bool $publishedOnly = true, array $opts = []): array
         $where[] = 'c.slug = ?';
         $args[] = $opts['category'];
     }
+    if (!empty($opts['categories'])) {
+        // Selecting a main category also brings in everything under it.
+        $slugs = array_slice(array_values(array_filter($opts['categories'])), 0, 40);
+        if ($slugs) {
+            $in = implode(',', array_fill(0, count($slugs), '?'));
+            $where[] = "(c.slug IN ($in) OR c.parent_id IN
+                         (SELECT c4.id FROM categories c4 WHERE c4.slug IN ($in)))";
+            array_push($args, ...$slugs, ...$slugs);
+        }
+    }
     if (!empty($opts['categoryId'])) {
         if (!empty($opts['includeChildren'])) {
             $where[] = '(p.category_id = ? OR p.category_id IN
@@ -298,6 +308,7 @@ function handle_public(string $method, array $seg): void
             'search'   => $_GET['search'] ?? '',
             'limit'    => $_GET['limit'] ?? 0,
             'featured' => !empty($_GET['featured']),
+            'categories' => array_filter(array_map('trim', explode(',', (string) ($_GET['categories'] ?? '')))),
         ];
         $rows = load_products(true, $opts);
 
@@ -341,6 +352,19 @@ function handle_public(string $method, array $seg): void
             throw new ApiError('Post not found.', 404);
         }
         json_out(shape_post($row, media_map([$row['cover_id']])));
+    }
+
+    if ($method === 'GET' && $head === 'menu') {
+        $tree = category_tree();
+        // A handful of products per category is plenty for a dropdown panel.
+        foreach ($tree as &$cat) {
+            $cat['products'] = array_map(
+                static fn($p) => ['slug' => $p['slug'], 'name' => $p['name'], 'image' => $p['image']],
+                load_products(true, ['categoryId' => $cat['id'], 'includeChildren' => true, 'limit' => 8])
+            );
+        }
+        unset($cat);
+        json_out($tree);
     }
 
     if ($method === 'GET' && $head === 'categories') {

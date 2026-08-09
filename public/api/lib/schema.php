@@ -8,7 +8,7 @@ declare(strict_types=1);
  */
 
 /** Bump whenever the statements below change, to re-run them once. */
-const SCHEMA_VERSION = 9;
+const SCHEMA_VERSION = 10;
 
 /**
  * Cheap gate in front of the real work. Without it every single API request
@@ -213,6 +213,7 @@ function migrate_run(): void
     enable_hero_cta_once();
     add_products_faq_once();
     add_journal_once();
+    add_products_filter_grid_once();
 }
 
 /**
@@ -687,5 +688,62 @@ function add_journal_once(): void
         'posts',
         $next,
         json_col(['title' => 'From the journal', 'subtitle' => '', 'limit' => 3]),
+    ]);
+}
+
+/**
+ * A filterable product grid on the Products page.
+ *
+ * That page browses by category (the parallax section), which is good for
+ * discovery but gives no way to narrow a list. This adds the grid with the
+ * category sidebar switched on, placed after the category browser and before
+ * the FAQ.
+ */
+function add_products_filter_grid_once(): void
+{
+    if (db()->query("SELECT `value` FROM settings WHERE `key` = 'products_filter_v1'")->fetchColumn() !== false) {
+        return;
+    }
+    db()->prepare('INSERT IGNORE INTO settings (`key`, `value`) VALUES (?, ?)')
+        ->execute(['products_filter_v1', '1']);
+
+    $pageId = db()->query("SELECT id FROM pages WHERE slug = 'products' LIMIT 1")->fetchColumn();
+    if ($pageId === false) {
+        return;
+    }
+    $pageId = (int) $pageId;
+
+    $has = db()->prepare("SELECT COUNT(*) FROM blocks WHERE page_id = ? AND type = 'product_grid'");
+    $has->execute([$pageId]);
+    if ((int) $has->fetchColumn() > 0) {
+        return;
+    }
+
+    // Sit just above the FAQ if there is one, otherwise at the end.
+    $faqOrder = db()->prepare("SELECT sort_order FROM blocks WHERE page_id = ? AND type = 'faq' LIMIT 1");
+    $faqOrder->execute([$pageId]);
+    $at = $faqOrder->fetchColumn();
+    if ($at === false) {
+        $at = (int) db()->query("SELECT COALESCE(MAX(sort_order), -1) + 1 FROM blocks WHERE page_id = $pageId")
+            ->fetchColumn();
+    } else {
+        $at = (int) $at;
+        db()->prepare('UPDATE blocks SET sort_order = sort_order + 1 WHERE page_id = ? AND sort_order >= ?')
+            ->execute([$pageId, $at]);
+    }
+
+    db()->prepare(
+        'INSERT INTO blocks (page_id, type, sort_order, visible, data) VALUES (?, ?, ?, 1, ?)'
+    )->execute([
+        $pageId,
+        'product_grid',
+        $at,
+        json_col([
+            'title'      => 'All products',
+            'subtitle'   => 'Filter by category to narrow the list.',
+            'mode'       => 'all',
+            'showFilter' => true,
+            'limit'      => 0,
+        ]),
     ]);
 }

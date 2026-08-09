@@ -50,6 +50,14 @@ export interface Page {
 export interface NavItem {
   label: string
   href: string
+  /**
+   * 'link'     — a plain link (default, and what older saved menus are)
+   * 'category' — dropdown built automatically from a category
+   * 'manual'   — dropdown of links written by hand
+   */
+  type?: 'link' | 'category' | 'manual'
+  categorySlug?: string
+  children?: { label: string; href: string }[]
 }
 
 export interface Settings {

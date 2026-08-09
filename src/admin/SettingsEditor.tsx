@@ -1,19 +1,12 @@
 import { useEffect, useState } from 'react'
-import { Plus, Trash2, X, ChevronUp, ChevronDown } from 'lucide-react'
+import { Plus, Trash2, X } from 'lucide-react'
 import { api } from '../lib/api'
 import { mapEmbedUrl } from '../lib/contact'
 import AccountCard from './AccountCard'
 import UsersCard from './UsersCard'
+import MenuEditor from './MenuEditor'
 import type { FooterColumn, MediaItem, NavItem, Settings } from '../lib/types'
 
-/** Swaps two entries in a list; used by the menu and footer re-order buttons. */
-function move<T>(list: T[], i: number, dir: -1 | 1, commit: (next: T[]) => void) {
-  const j = i + dir
-  if (j < 0 || j >= list.length) return
-  const next = [...list]
-  ;[next[i], next[j]] = [next[j], next[i]]
-  commit(next)
-}
 import {
   Button, Card, Field, Input, Textarea, useSaveState, MediaLibraryModal,
 } from './ui'
@@ -226,60 +219,7 @@ export default function SettingsEditor() {
           Leave this empty to build the menu automatically from your published pages. Add items
           here to take full control, including links to categories or external sites.
         </p>
-        <div className="flex flex-col gap-2">
-          {navItems.map((item, i) => (
-            <div key={i} className="flex gap-2 items-center">
-              <Input
-                value={item.label}
-                onChange={(e) =>
-                  set('nav_items', navItems.map((x, k) => (k === i ? { ...x, label: e.target.value } : x)))
-                }
-                placeholder="Label"
-              />
-              <Input
-                value={item.href}
-                onChange={(e) =>
-                  set('nav_items', navItems.map((x, k) => (k === i ? { ...x, href: e.target.value } : x)))
-                }
-                placeholder="/products"
-              />
-              <button
-                type="button"
-                onClick={() => move(navItems, i, -1, (v) => set('nav_items', v))}
-                className="w-9 h-9 shrink-0 rounded-lg text-gray-400 hover:text-black hover:bg-gray-100 flex items-center justify-center"
-                aria-label="Move up"
-              >
-                <ChevronUp size={15} />
-              </button>
-              <button
-                type="button"
-                onClick={() => move(navItems, i, 1, (v) => set('nav_items', v))}
-                className="w-9 h-9 shrink-0 rounded-lg text-gray-400 hover:text-black hover:bg-gray-100 flex items-center justify-center"
-                aria-label="Move down"
-              >
-                <ChevronDown size={15} />
-              </button>
-              <button
-                type="button"
-                onClick={() => set('nav_items', navItems.filter((_, k) => k !== i))}
-                className="w-9 h-9 shrink-0 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 flex items-center justify-center"
-                aria-label="Remove item"
-              >
-                <X size={15} />
-              </button>
-            </div>
-          ))}
-          <Button
-            type="button"
-            variant="ghost"
-            className="self-start"
-            onClick={() => set('nav_items', [...navItems, { label: '', href: '' }])}
-          >
-            <span className="inline-flex items-center gap-1.5">
-              <Plus size={15} /> Add menu item
-            </span>
-          </Button>
-        </div>
+        <MenuEditor items={navItems} onChange={(v) => set('nav_items', v)} />
 
         <div className="mt-6 pt-5 border-t border-gray-100">
           <h3 className="text-sm font-semibold text-black mb-1">Menu bar colours</h3>

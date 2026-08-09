@@ -1,7 +1,10 @@
 import { useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
-import { Menu, X } from 'lucide-react'
+import { Menu, X, ChevronDown } from 'lucide-react'
 import { useSite } from '../lib/site'
+import MenuItem, { useMenuTree } from './MegaMenu'
+import type { MenuCategory } from './MegaMenu'
+import type { NavItem } from '../lib/types'
 
 /** Uploaded logo when one is set, otherwise the built-in mark. */
 function Logo({ url, name, color }: { url?: string; name?: string; color: string }) {
@@ -55,9 +58,77 @@ function NavLink({
   )
 }
 
+/** Mobile menu row: a link, or a tap-to-expand list of children. */
+function MobileNavEntry({
+  item,
+  tree,
+  textColor,
+  onNavigate,
+}: {
+  item: NavItem
+  tree: MenuCategory[]
+  textColor: string
+  onNavigate: () => void
+}) {
+  const [open, setOpen] = useState(false)
+  const category = item.type === 'category' ? tree.find((c) => c.slug === item.categorySlug) : undefined
+  const manual = item.type === 'manual' ? item.children ?? [] : []
+
+  const links: { label: string; href: string }[] = category
+    ? [
+        ...category.children.map((sub) => ({
+          label: sub.name,
+          href: `/category/${category.slug}/${sub.slug}`,
+        })),
+        ...category.products.map((p) => ({ label: p.name, href: `/products/${p.slug}` })),
+        { label: `View all ${category.name}`, href: `/category/${category.slug}` },
+      ]
+    : manual
+
+  if (links.length === 0) {
+    return (
+      <div className="px-3 py-2 rounded-xl hover:bg-black/5">
+        <NavLink href={item.href} label={item.label} color={textColor} onClick={onNavigate} />
+      </div>
+    )
+  }
+
+  return (
+    <div className="rounded-xl">
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        aria-expanded={open}
+        className="w-full px-3 py-2 flex items-center justify-between gap-2 text-sm font-medium hover:bg-black/5 rounded-xl"
+        style={{ color: textColor }}
+      >
+        {item.label}
+        <ChevronDown size={15} className={`transition-transform ${open ? 'rotate-180' : ''}`} />
+      </button>
+      {open && (
+        <div className="pl-3 pb-1 flex flex-col">
+          {links.map((l, i) => (
+            <Link
+              key={i}
+              to={l.href}
+              onClick={onNavigate}
+              className="text-sm text-gray-600 hover:text-black py-1.5 px-3"
+            >
+              {l.label}
+            </Link>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 export default function Navbar({ variant = 'overlay' }: { variant?: 'overlay' | 'solid' }) {
   const { nav, settings } = useSite()
   const [menuOpen, setMenuOpen] = useState(false)
+  // Only fetch the category tree when a menu entry actually needs it.
+  const needsTree = nav.some((i) => i.type === 'category')
+  const tree = useMenuTree(needsTree)
   const location = useLocation()
 
   const ctaHref = settings.cta_href || '/contact'
@@ -81,12 +152,13 @@ export default function Navbar({ variant = 'overlay' }: { variant?: 'overlay' | 
         </Link>
 
         <div className="hidden sm:flex items-center gap-6">
-          {nav.map((item) => (
-            <NavLink
-              key={item.href + item.label}
-              href={item.href}
-              label={item.label}
-              color={textColor}
+          {nav.map((item, i) => (
+            <MenuItem
+              key={`${item.label}-${i}`}
+              item={item}
+              tree={tree}
+              textColor={textColor}
+              panelBg={bg}
             />
           ))}
         </div>
@@ -117,15 +189,14 @@ export default function Navbar({ variant = 'overlay' }: { variant?: 'overlay' | 
           style={{ backgroundColor: bg }}
           className="sm:hidden absolute left-0 right-0 mt-2 z-30 rounded-2xl shadow-xl border border-black/10 p-3 flex flex-col gap-1"
         >
-          {nav.map((item) => (
-            <div key={item.href + item.label} className="px-3 py-2 rounded-xl hover:bg-black/5">
-              <NavLink
-                href={item.href}
-                label={item.label}
-                color={textColor}
-                onClick={() => setMenuOpen(false)}
-              />
-            </div>
+          {nav.map((item, i) => (
+            <MobileNavEntry
+              key={`${item.label}-${i}`}
+              item={item}
+              tree={tree}
+              textColor={textColor}
+              onNavigate={() => setMenuOpen(false)}
+            />
           ))}
           {ctaLabel && location.pathname !== ctaHref && (
             <Link
