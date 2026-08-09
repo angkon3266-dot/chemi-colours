@@ -8,7 +8,7 @@ declare(strict_types=1);
  */
 
 /** Bump whenever the statements below change, to re-run them once. */
-const SCHEMA_VERSION = 11;
+const SCHEMA_VERSION = 12;
 
 /**
  * Cheap gate in front of the real work. Without it every single API request
@@ -215,6 +215,7 @@ function migrate_run(): void
     add_journal_once();
     add_products_filter_grid_once();
     split_products_pages_once();
+    seed_journal_examples_once();
 }
 
 /**
@@ -407,6 +408,7 @@ function seed_settings(): void
     setting_default('nav_bg_color', '#ffffff');
     setting_default('nav_align', 'left');
     setting_default('related_count', '8');
+    setting_default('category_grid_columns', '3');
     setting_default('ga_measurement_id', '');
     setting_default('search_console_token', '');
     setting_default('og_image_url', '');
@@ -827,5 +829,92 @@ function split_products_pages_once(): void
     $i = 0;
     foreach (db()->query("SELECT id FROM blocks WHERE page_id = $productsId ORDER BY sort_order ASC")->fetchAll() as $b) {
         db()->prepare('UPDATE blocks SET sort_order = ? WHERE id = ?')->execute([$i++, $b['id']]);
+    }
+}
+
+/**
+ * A handful of example journal posts so the section isn't empty while the
+ * owner writes their own. Deliberately generic, industry-standard
+ * information — nothing about Chemi Colours' own history, performance or
+ * certifications, since that would be inventing claims for a live trading
+ * site. Saved as DRAFTS: nothing here goes public without the owner
+ * reviewing and publishing it themselves.
+ */
+function seed_journal_examples_once(): void
+{
+    if (db()->query("SELECT `value` FROM settings WHERE `key` = 'journal_examples_v1'")->fetchColumn() !== false) {
+        return;
+    }
+    db()->prepare('INSERT IGNORE INTO settings (`key`, `value`) VALUES (?, ?)')
+        ->execute(['journal_examples_v1', '1']);
+
+    if ((int) db()->query('SELECT COUNT(*) FROM posts')->fetchColumn() > 0) {
+        return;
+    }
+
+    $posts = [
+        [
+            'title'   => 'Reactive, Disperse and Acid Dyes: What Sets Them Apart',
+            'excerpt' => 'A quick guide to the three dye classes you will see most often, and which substrates each one is actually built for.',
+            'body'    => '<p>Choosing the right dye class starts with the fibre, not the shade. Getting this wrong is the single most common reason a batch fails at the lab-dip stage.</p>'
+                . '<h3>Reactive dyes</h3>'
+                . '<p>Form a covalent bond with the fibre itself, which is why they hold up so well to washing. Used almost exclusively on cellulosic fibres — cotton, viscose, linen.</p>'
+                . '<h3>Disperse dyes</h3>'
+                . '<p>Applied as a fine aqueous dispersion rather than a true solution, since the dye itself has very low water solubility. Built for synthetic fibres, most commonly polyester.</p>'
+                . '<h3>Acid dyes</h3>'
+                . '<p>Applied from an acidic dyebath and bond to fibres with basic sites in their structure — wool, silk and nylon. Generally give brighter shades than reactive dyes but with different fastness characteristics.</p>'
+                . '<p><strong>The practical takeaway:</strong> confirm your substrate before requesting a lab dip. A dye class matched to the wrong fibre will not fix itself with more dosing.</p>',
+            'author'  => '',
+        ],
+        [
+            'title'   => 'Understanding Colour Fastness Ratings',
+            'excerpt' => 'Light, wash and rub fastness are graded on standard scales — here is what the numbers on a technical data sheet actually mean.',
+            'body'    => '<p>Fastness ratings describe how well a dyed fabric resists fading or transferring colour under a specific kind of stress. They are not a single "quality score" — a shade can be excellent on one scale and weak on another, which is exactly why buyers ask for all three.</p>'
+                . '<h3>Wash and rub fastness</h3>'
+                . '<p>Graded 1 to 5 under ISO 105 test methods, where 5 is the best result (negligible colour change or staining) and 1 is the weakest. Most commercial apparel work targets 4 or better.</p>'
+                . '<h3>Light fastness</h3>'
+                . '<p>Graded on a wider 1 to 8 "blue wool" scale, where each step represents roughly double the light exposure needed to produce a noticeable fade. Outdoor and upholstery fabrics generally need a higher rating than garments worn indoors.</p>'
+                . '<ul><li>Ask for fastness figures alongside the shade, not after.</li>'
+                . '<li>Match the rating to the end use — a curtain and a t-shirt do not need the same light fastness.</li>'
+                . '<li>A documented rating from a test report is worth more than a verbal assurance.</li></ul>',
+            'author'  => '',
+        ],
+        [
+            'title'   => 'Storing Reactive Dyes in Humid Climates',
+            'excerpt' => 'Reactive dye powders absorb moisture readily, and a damp store room is one of the most common causes of inconsistent shade from one batch to the next.',
+            'body'    => '<p>Reactive dyes are, by design, chemically reactive — that is what lets them bond to the fibre. The same reactivity means they can slowly hydrolyse (react with atmospheric moisture) while still sitting in the drum, which quietly reduces dye strength before it ever reaches the dyebath.</p>'
+                . '<h3>What actually helps</h3>'
+                . '<ul><li>Keep drums sealed until the moment of weighing — do not leave them open on the shop floor.</li>'
+                . '<li>Store below roughly 30°C and away from direct sunlight; heat speeds up hydrolysis.</li>'
+                . '<li>Aim for a dry storage area — a dehumidifier is a reasonable investment where ambient humidity is consistently high.</li>'
+                . '<li>Use older stock first. Dye strength drifts over time even under good conditions, so first-in-first-out matters.</li></ul>'
+                . '<p>If a shade that used to match suddenly needs a higher dosage to reach the same depth, ageing or moisture-affected stock is one of the first things worth checking.</p>',
+            'author'  => '',
+        ],
+        [
+            'title'   => 'What to Check Before Placing a Bulk Dyestuff Order',
+            'excerpt' => 'A short checklist for the questions worth asking before committing to a large order, not after the drums have arrived.',
+            'body'    => '<p>A bulk order is much harder to unwind than a small one, so it is worth a few extra questions up front.</p>'
+                . '<ul><li><strong>Lab dip first.</strong> Confirm the shade against your own substrate and dyeing process, not just a swatch card.</li>'
+                . '<li><strong>Ask for the technical data sheet.</strong> Strength, recommended dosing range and application conditions should be documented, not verbal.</li>'
+                . '<li><strong>Confirm packaging and shelf life.</strong> Drum size affects storage and handling; shelf life affects how much you should realistically hold in stock.</li>'
+                . '<li><strong>Check the batch-to-batch consistency policy.</strong> Ask how a reorder is matched against your original approved lab dip.</li>'
+                . '<li><strong>Clarify lead time in writing.</strong> Especially for anything outside a supplier\'s standard stocked range.</li></ul>'
+                . '<p>None of this adds much time to the process, and it is far cheaper than discovering a mismatch after a production run.</p>',
+            'author'  => '',
+        ],
+    ];
+
+    $ins = db()->prepare(
+        'INSERT INTO posts (slug, title, excerpt, body, author, status) VALUES (?,?,?,?,?,"draft")'
+    );
+    foreach ($posts as $p) {
+        $ins->execute([
+            unique_slug('posts', slugify($p['title'], 'post')),
+            $p['title'],
+            $p['excerpt'],
+            $p['body'],
+            $p['author'],
+        ]);
     }
 }

@@ -3,6 +3,7 @@ import { Link, useParams } from 'react-router-dom'
 import { ArrowLeft, ChevronRight } from 'lucide-react'
 import { api } from '../lib/api'
 import { useSite } from '../lib/site'
+import { gridColsClass } from '../lib/grid'
 import type { Category, CategoryView } from '../lib/types'
 import ProductCard from './ProductCard'
 import { NotFound } from './pages'
@@ -82,6 +83,7 @@ export default function CategoryPage() {
   if (notFound || !data || !active) return <NotFound />
 
   const showChildren = !data.subcategory && data.children.length > 0
+  const cols = gridColsClass(settings.category_grid_columns, '3')
 
   return (
     <div className="px-4 sm:px-6 py-8 sm:py-12">
@@ -134,7 +136,7 @@ export default function CategoryPage() {
         {showChildren && (
           <section className="mt-12">
             <h2 className="text-xl font-medium text-black mb-5">Browse by type</h2>
-            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
+            <div className={`grid ${cols} gap-4 sm:gap-5`}>
               {data.children.map((c) => (
                 <CategoryTile key={c.id} category={c} base={`/category/${data.category.slug}`} />
               ))}
@@ -153,7 +155,7 @@ export default function CategoryPage() {
               </p>
             )
           ) : (
-            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
+            <div className={`grid ${cols} gap-4 sm:gap-5`}>
               {data.products.map((p) => (
                 <ProductCard key={p.id} product={p} />
               ))}

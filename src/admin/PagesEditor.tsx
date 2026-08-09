@@ -171,6 +171,22 @@ function FieldEditor({
     return <Toggle checked={!!value} onChange={onChange} label={def.label} />
   }
 
+  if (def.type === 'color') {
+    return (
+      <Field label={def.label} hint={def.hint}>
+        <div className="flex gap-2 items-center">
+          <input
+            type="color"
+            value={/^#[0-9a-fA-F]{6}$/.test(value) ? value : '#000000'}
+            onChange={(e) => onChange(e.target.value)}
+            className="w-12 h-10 rounded-lg border border-gray-200 bg-white cursor-pointer shrink-0"
+          />
+          <Input value={value ?? ''} onChange={(e) => onChange(e.target.value)} placeholder="#000000" />
+        </div>
+      </Field>
+    )
+  }
+
   if (def.type === 'media') {
     return (
       <MediaPicker

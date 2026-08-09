@@ -8,7 +8,7 @@ import MenuEditor from './MenuEditor'
 import type { FooterColumn, MediaItem, NavItem, Settings } from '../lib/types'
 
 import {
-  Button, Card, Field, Input, Textarea, useSaveState, MediaLibraryModal,
+  Button, Card, Field, Input, Select, Textarea, useSaveState, MediaLibraryModal,
 } from './ui'
 
 export default function SettingsEditor() {
@@ -680,6 +680,20 @@ export default function SettingsEditor() {
               value={s.related_count ?? 8}
               onChange={(e) => set('related_count', e.target.value)}
             />
+          </Field>
+
+          <Field
+            label="Category page tiles per row"
+            hint="Sub-category tiles and the product grid on a category page. Mobile and tablet scale down automatically."
+          >
+            <Select
+              value={s.category_grid_columns || '3'}
+              onChange={(e) => set('category_grid_columns', e.target.value)}
+            >
+              <option value="2">2 per row</option>
+              <option value="3">3 per row</option>
+              <option value="4">4 per row</option>
+            </Select>
           </Field>
 
           <p className="text-xs text-gray-400">

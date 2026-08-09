@@ -11,16 +11,10 @@ import ContactForm from './ContactForm'
 import ProductCard from './ProductCard'
 import ParallaxCategories from './ParallaxCategories'
 import ProductFilter from './ProductFilter'
+import { gridColsClass } from '../lib/grid'
 
 const SECTION = 'py-12 sm:py-16 px-4 sm:px-6'
 const INNER = 'max-w-6xl mx-auto'
-
-/** Desktop tiles-per-row for the category/product grid block. */
-const GRID_COLUMNS: Record<string, string> = {
-  '2': 'grid-cols-1 sm:grid-cols-2',
-  '3': 'grid-cols-2 sm:grid-cols-2 lg:grid-cols-3',
-  '4': 'grid-cols-2 sm:grid-cols-3 lg:grid-cols-4',
-}
 
 /** Where the hero button sits when it is not tucked under the headline. */
 const CTA_POSITIONS: Record<string, string> = {
@@ -356,9 +350,14 @@ function ProductGrid({ data }: { data: Record<string, any> }) {
     }
   }, [showFilter])
 
+  // Admin picks the desktop column count; mobile/tablet scale down using the
+  // same sensible rule the category tiles use, rather than a hard-coded
+  // single column that made the grid look oversized on phones.
+  const cols = gridColsClass(data.columns, '3')
+
   const grid = loading ? (
-    <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
-      {[0, 1, 2].map((i) => (
+    <div className={`grid ${cols} gap-4 sm:gap-5`}>
+      {[0, 1, 2, 3].map((i) => (
         <div key={i} className="rounded-2xl border border-gray-200 overflow-hidden">
           <div className="aspect-[4/3] bg-gray-100 animate-pulse" />
           <div className="p-4 space-y-2">
@@ -375,7 +374,7 @@ function ProductGrid({ data }: { data: Record<string, any> }) {
         : 'No products to show yet. Add them from the admin panel.'}
     </p>
   ) : (
-    <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
+    <div className={`grid ${cols} gap-4 sm:gap-5`}>
       {products.map((p) => (
         <ProductCard key={p.id} product={p} />
       ))}
@@ -462,7 +461,7 @@ function CategoryGrid({ data }: { data: Record<string, any> }) {
   const { categories, loading } = useCategories()
   const [products, setProducts] = useState<Product[]>([])
   const source = data.source || 'main'
-  const cols = GRID_COLUMNS[String(data.columns ?? '4')] ?? GRID_COLUMNS['4']
+  const cols = gridColsClass(data.columns, '4')
 
   useEffect(() => {
     if (source !== 'products') return
@@ -677,24 +676,49 @@ function Gallery({ data }: { data: Record<string, any> }) {
 }
 
 /* ------------------------------------------------------------------- cta -- */
+const CTA_BUTTON_SIZE: Record<string, string> = {
+  sm: 'text-xs px-4 py-2.5 rounded-xl',
+  md: 'text-sm px-6 py-3.5 rounded-2xl',
+  lg: 'text-base px-8 py-4 rounded-2xl',
+}
+
 function Cta({ data }: { data: Record<string, any> }) {
+  const bg = data.bgColor || '#000000'
+  const text = data.textColor || '#ffffff'
+  const btnBg = data.buttonBgColor || '#ffffff'
+  const btnText = data.buttonTextColor || '#000000'
+  const size = CTA_BUTTON_SIZE[data.size as string] || CTA_BUTTON_SIZE.md
+  const centered = data.layout === 'centered'
+
+  const button = data.buttonText && (
+    <Link
+      to={data.buttonHref || '/contact'}
+      style={{ backgroundColor: btnBg, color: btnText }}
+      className={`shrink-0 font-semibold text-center transition-opacity hover:opacity-85 ${size}`}
+    >
+      {data.buttonText}
+    </Link>
+  )
+
   return (
     <section className="px-4 sm:px-6 py-8 sm:py-12">
       <div
-        className={`${INNER} rounded-2xl sm:rounded-3xl bg-black text-white px-6 sm:px-10 py-10 sm:py-14 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6`}
+        style={{ backgroundColor: bg, color: text }}
+        className={`${INNER} rounded-2xl sm:rounded-3xl px-6 sm:px-10 py-10 sm:py-14 flex gap-6 ${
+          centered
+            ? 'flex-col items-center text-center'
+            : 'flex-col lg:flex-row lg:items-center lg:justify-between'
+        }`}
       >
-        <div className="max-w-xl">
+        <div className={centered ? 'max-w-xl' : 'max-w-xl'}>
           <h2 className="text-2xl sm:text-3xl font-medium leading-snug">{data.title}</h2>
-          {data.text && <p className="mt-3 text-gray-300 leading-relaxed">{data.text}</p>}
+          {data.text && (
+            <p className="mt-3 leading-relaxed" style={{ opacity: 0.75 }}>
+              {data.text}
+            </p>
+          )}
         </div>
-        {data.buttonText && (
-          <Link
-            to={data.buttonHref || '/contact'}
-            className="shrink-0 bg-white text-black text-sm font-semibold px-6 py-3.5 rounded-2xl hover:bg-gray-200 transition-colors text-center"
-          >
-            {data.buttonText}
-          </Link>
-        )}
+        {button}
       </div>
     </section>
   )
@@ -763,14 +787,17 @@ function Logos({ data }: { data: Record<string, any> }) {
             {data.title}
           </p>
         )}
-        <div className="flex flex-wrap items-center justify-center gap-8 sm:gap-12 opacity-60">
+        {/* Certification/partner marks need to actually be legible — the old
+            h-7/h-9 size plus grayscale + 60% opacity made them nearly
+            invisible, which defeats the point of showing them at all. */}
+        <div className="flex flex-wrap items-center justify-center gap-10 sm:gap-16">
           {items.map((it, i) => (
             <img
               key={i}
               src={typeof it === 'string' ? it : it.url}
               alt={typeof it === 'string' ? '' : it.alt || ''}
               loading="lazy"
-              className="h-7 sm:h-9 object-contain grayscale"
+              className="h-14 sm:h-20 object-contain"
             />
           ))}
         </div>

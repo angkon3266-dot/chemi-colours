@@ -74,15 +74,24 @@ function MobileCategoryRow({
   const [open, setOpen] = useState(false)
   return (
     <div>
-      <button
-        type="button"
-        onClick={() => setOpen((o) => !o)}
-        aria-expanded={open}
-        className="w-full flex items-center justify-between gap-2 text-sm text-gray-700 hover:text-black py-2 px-3"
-      >
-        {category.name}
-        <ChevronDown size={13} className={`transition-transform shrink-0 ${open ? 'rotate-180' : ''}`} />
-      </button>
+      <div className="flex items-center justify-between gap-2">
+        <Link
+          to={categoryHref(category.slug)}
+          onClick={onNavigate}
+          className="flex-1 text-sm text-gray-700 hover:text-black py-2 px-3"
+        >
+          {category.name}
+        </Link>
+        <button
+          type="button"
+          onClick={() => setOpen((o) => !o)}
+          aria-expanded={open}
+          aria-label={`${category.name} sub-categories`}
+          className="shrink-0 p-2 text-gray-400 hover:text-black"
+        >
+          <ChevronDown size={13} className={`transition-transform ${open ? 'rotate-180' : ''}`} />
+        </button>
+      </div>
       {open && (
         <div className="pl-4 pb-1 flex flex-col">
           {category.children.map((sub) => (
@@ -129,16 +138,21 @@ function MobileNavEntry({
   if (showAll) {
     return (
       <div className="rounded-xl">
-        <button
-          type="button"
-          onClick={() => setOpen((o) => !o)}
-          aria-expanded={open}
-          className="w-full px-3 py-2 flex items-center justify-between gap-2 text-sm font-medium hover:bg-black/5 rounded-xl"
-          style={{ color: textColor }}
-        >
-          {item.label}
-          <ChevronDown size={15} className={`transition-transform ${open ? 'rotate-180' : ''}`} />
-        </button>
+        <div className="flex items-center justify-between gap-2 rounded-xl hover:bg-black/5">
+          <span className="flex-1 px-3 py-2">
+            <NavLink href={item.href} label={item.label} color={textColor} onClick={onNavigate} />
+          </span>
+          <button
+            type="button"
+            onClick={() => setOpen((o) => !o)}
+            aria-expanded={open}
+            aria-label={`${item.label} categories`}
+            className="shrink-0 p-2 mr-1"
+            style={{ color: textColor }}
+          >
+            <ChevronDown size={15} className={`transition-transform ${open ? 'rotate-180' : ''}`} />
+          </button>
+        </div>
         {open && (
           <div className="flex flex-col">
             {tree.map((c) => (
@@ -167,16 +181,21 @@ function MobileNavEntry({
 
   return (
     <div className="rounded-xl">
-      <button
-        type="button"
-        onClick={() => setOpen((o) => !o)}
-        aria-expanded={open}
-        className="w-full px-3 py-2 flex items-center justify-between gap-2 text-sm font-medium hover:bg-black/5 rounded-xl"
-        style={{ color: textColor }}
-      >
-        {item.label}
-        <ChevronDown size={15} className={`transition-transform ${open ? 'rotate-180' : ''}`} />
-      </button>
+      <div className="flex items-center justify-between gap-2 rounded-xl hover:bg-black/5">
+        <span className="flex-1 px-3 py-2">
+          <NavLink href={item.href} label={item.label} color={textColor} onClick={onNavigate} />
+        </span>
+        <button
+          type="button"
+          onClick={() => setOpen((o) => !o)}
+          aria-expanded={open}
+          aria-label={`${item.label} submenu`}
+          className="shrink-0 p-2 mr-1"
+          style={{ color: textColor }}
+        >
+          <ChevronDown size={15} className={`transition-transform ${open ? 'rotate-180' : ''}`} />
+        </button>
+      </div>
       {open && (
         <div className="pl-3 pb-1 flex flex-col">
           {links.map((l, i) => (

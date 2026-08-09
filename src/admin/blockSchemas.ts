@@ -1,6 +1,7 @@
 import type { BlockType } from '../lib/types'
 
-export type FieldType = 'text' | 'textarea' | 'html' | 'bool' | 'number' | 'select' | 'list' | 'media'
+export type FieldType =
+  | 'text' | 'textarea' | 'html' | 'bool' | 'number' | 'select' | 'list' | 'media' | 'color'
 
 export interface FieldDef {
   key: string
@@ -148,9 +149,18 @@ export const BLOCK_SCHEMAS: Record<BlockType, BlockSchema> = {
         ],
       },
       { key: 'showFilter', label: 'Show category filter', type: 'bool' },
+      {
+        key: 'columns', label: 'Columns on desktop', type: 'select',
+        hint: 'Tablet and mobile scale down automatically.',
+        options: [
+          { value: '2', label: '2 per row' },
+          { value: '3', label: '3 per row' },
+          { value: '4', label: '4 per row' },
+        ],
+      },
       { key: 'limit', label: 'Maximum to show', type: 'number', hint: '0 means no limit.' },
     ],
-    defaults: { title: '', subtitle: '', mode: 'all', showFilter: false, limit: 0 },
+    defaults: { title: '', subtitle: '', mode: 'all', showFilter: false, columns: '3', limit: 0 },
   },
   gallery: {
     label: 'Image gallery',
@@ -264,14 +274,37 @@ export const BLOCK_SCHEMAS: Record<BlockType, BlockSchema> = {
   },
   cta: {
     label: 'Call to action',
-    description: 'A black panel with a button.',
+    description: 'A panel with a button — colour, size and layout are all yours.',
     fields: [
       { key: 'title', label: 'Heading', type: 'text' },
       { key: 'text', label: 'Text', type: 'textarea' },
       { key: 'buttonText', label: 'Button label', type: 'text' },
       { key: 'buttonHref', label: 'Button link', type: 'text', hint: 'e.g. /contact' },
+      {
+        key: 'layout', label: 'Layout', type: 'select',
+        options: [
+          { value: 'row', label: 'Side by side (text left, button right)' },
+          { value: 'centered', label: 'Centred, stacked' },
+        ],
+      },
+      {
+        key: 'size', label: 'Button size', type: 'select',
+        options: [
+          { value: 'sm', label: 'Small' },
+          { value: 'md', label: 'Medium' },
+          { value: 'lg', label: 'Large' },
+        ],
+      },
+      { key: 'bgColor', label: 'Panel background', type: 'color' },
+      { key: 'textColor', label: 'Panel text', type: 'color' },
+      { key: 'buttonBgColor', label: 'Button background', type: 'color' },
+      { key: 'buttonTextColor', label: 'Button text', type: 'color' },
     ],
-    defaults: { title: '', text: '', buttonText: '', buttonHref: '/contact' },
+    defaults: {
+      title: '', text: '', buttonText: '', buttonHref: '/contact',
+      layout: 'row', size: 'md',
+      bgColor: '#000000', textColor: '#ffffff', buttonBgColor: '#ffffff', buttonTextColor: '#000000',
+    },
   },
   contact: {
     label: 'Contact form',

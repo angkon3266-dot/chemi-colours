@@ -145,11 +145,16 @@ function AllCategoriesPanel({
     <div className="flex">
       <div className="min-w-[180px] pr-4 border-r border-gray-100 flex flex-col">
         {tree.map((c) => (
-          <button
+          // A real link: hovering previews its sub-categories on the right
+          // (mouse hasn't committed to anything yet), but clicking goes
+          // straight to that category's product list, same as any other menu
+          // link — you don't have to drill into a sub-category just to browse
+          // the whole thing.
+          <Link
             key={c.id}
-            type="button"
+            to={categoryHref(c.slug)}
             onMouseEnter={() => setActiveSlug(c.slug)}
-            onClick={() => setActiveSlug(c.slug)}
+            onClick={onNavigate}
             aria-current={c.slug === active?.slug}
             className={`flex items-center justify-between gap-2 text-left text-sm px-2.5 py-2 rounded-lg whitespace-nowrap transition-colors ${
               c.slug === active?.slug
@@ -159,7 +164,7 @@ function AllCategoriesPanel({
           >
             {c.name}
             <ChevronRight size={13} className="text-gray-300 shrink-0" />
-          </button>
+          </Link>
         ))}
       </div>
 
@@ -238,20 +243,34 @@ export default function MenuItem({
         closeTimer.current = window.setTimeout(() => setOpen(false), 120)
       }}
     >
-      <button
-        type="button"
-        onClick={() => setOpen((o) => !o)}
-        aria-expanded={open}
-        aria-haspopup="true"
-        className={`${linkCls} inline-flex items-center gap-1`}
-        style={{ color: textColor }}
-      >
-        {item.label}
-        <ChevronDown
-          size={14}
-          className={`transition-transform ${open ? 'rotate-180' : ''}`}
-        />
-      </button>
+      {/* Split in two: the label is a real link (so clicking it goes straight
+          to the category/page, matching a normal menu item), and the chevron
+          is a separate toggle for keyboard and touch users who need to reach
+          the flyout without a hover to open it first. */}
+      <span className="inline-flex items-center gap-0.5">
+        <Anchor
+          href={item.href}
+          onClick={() => setOpen(false)}
+          className={linkCls}
+          color={textColor}
+        >
+          {item.label}
+        </Anchor>
+        <button
+          type="button"
+          onClick={() => setOpen((o) => !o)}
+          aria-expanded={open}
+          aria-haspopup="true"
+          aria-label={`${item.label} menu`}
+          className="p-1 -m-1 rounded hover:opacity-60 transition-opacity"
+          style={{ color: textColor }}
+        >
+          <ChevronDown
+            size={14}
+            className={`transition-transform ${open ? 'rotate-180' : ''}`}
+          />
+        </button>
+      </span>
 
       {open && (
         <div

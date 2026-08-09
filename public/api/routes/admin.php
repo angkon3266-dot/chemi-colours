@@ -13,7 +13,7 @@ const SETTING_KEYS = [
     'footer_address', 'footer_extra',
     'nav_items', 'nav_bg_color', 'nav_text_color', 'nav_align', 'footer_map_url',
     'ga_measurement_id', 'search_console_token', 'og_image_url', 'meta_description',
-    'related_count',
+    'related_count', 'category_grid_columns',
     'social_twitter', 'social_facebook', 'social_instagram', 'social_linkedin',
     'form_services', 'form_heading', 'form_intro',
     'form_success_title', 'form_success_text',

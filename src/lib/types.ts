@@ -92,6 +92,9 @@ export interface Settings {
   form_intro?: string
   form_success_title?: string
   form_success_text?: string
+  related_count?: string
+  /** Tiles-per-row on desktop for category/sub-category pages; '2' | '3' | '4'. */
+  category_grid_columns?: string
   [key: string]: any
 }
 
