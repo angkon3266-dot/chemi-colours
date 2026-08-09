@@ -55,7 +55,8 @@ function shape_product(array $p, array $mediaById = []): array
         'slug'        => $p['slug'],
         'name'        => $p['name'],
         'categoryId'  => $p['category_id'] !== null ? (int) $p['category_id'] : null,
-        'category'    => $p['category_name'] ?? '',
+        'category'     => $p['category_name'] ?? '',
+        'categorySlug' => $p['category_slug'] ?? '',
         'ciName'      => $p['ci_name'],
         'casNo'       => $p['cas_no'],
         'form'        => $p['form'] ?? '',
@@ -186,7 +187,7 @@ function load_products(bool $publishedOnly = true, array $opts = []): array
         $like = '%' . $opts['search'] . '%';
         array_push($args, $like, $like, $like);
     }
-    $sql = 'SELECT p.*, c.name AS category_name FROM products p
+    $sql = 'SELECT p.*, c.name AS category_name, c.slug AS category_slug FROM products p
             LEFT JOIN categories c ON c.id = p.category_id';
     if ($where) {
         $sql .= ' WHERE ' . implode(' AND ', $where);
@@ -327,7 +328,7 @@ function handle_public(string $method, array $seg): void
     if ($method === 'GET' && $head === 'product') {
         $slug = $seg[1] ?? '';
         $stmt = db()->prepare(
-            "SELECT p.*, c.name AS category_name FROM products p
+            "SELECT p.*, c.name AS category_name, c.slug AS category_slug FROM products p
              LEFT JOIN categories c ON c.id = p.category_id
              WHERE p.slug = ? AND p.status = 'published' LIMIT 1"
         );

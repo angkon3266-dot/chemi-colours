@@ -13,6 +13,7 @@ const SETTING_KEYS = [
     'footer_address', 'footer_extra',
     'nav_items', 'nav_bg_color', 'nav_text_color', 'nav_align', 'footer_map_url',
     'ga_measurement_id', 'search_console_token', 'og_image_url', 'meta_description',
+    'related_count',
     'social_twitter', 'social_facebook', 'social_instagram', 'social_linkedin',
     'form_services', 'form_heading', 'form_intro',
     'form_success_title', 'form_success_text',
@@ -47,6 +48,7 @@ function handle_admin(string $method, array $seg): void
         'posts'      => admin_posts($method, $rest),
         'users'      => admin_users($method, $rest),
         'analytics'  => admin_analytics($method),
+        'optimise'   => admin_optimise($method),
         default      => throw new ApiError('Unknown admin endpoint.', 404),
     };
 }
@@ -565,6 +567,19 @@ function admin_media(string $method, array $seg): void
         }
         @chmod($dir . '/' . $filename, 0644);
 
+        // Photographs are stored as WebP: markedly smaller for the same quality,
+        // which is what a buyer on a phone actually feels. The original stays on
+        // disk untouched in case it is ever needed again.
+        if ($kind === 'image') {
+            require_once __DIR__ . '/../lib/images.php';
+            $webp = convert_to_webp($dir, $filename);
+            if ($webp !== null) {
+                $filename = $webp;
+                $realMime = 'image/webp';
+                $file['size'] = filesize($dir . '/' . $webp);
+            }
+        }
+
         $stmt = db()->prepare(
             'INSERT INTO media (kind, filename, original_name, mime, size_bytes, alt) VALUES (?,?,?,?,?,?)'
         );
@@ -824,4 +839,18 @@ function admin_analytics(string $method): void
     }
     require_once __DIR__ . '/../lib/analytics.php';
     json_out(analytics_summary((int) ($_GET['days'] ?? 30)));
+}
+
+// ------------------------------------------------------- image optimisation --
+function admin_optimise(string $method): void
+{
+    global $CONFIG;
+    if ($method !== 'POST') {
+        throw new ApiError('Unknown endpoint.', 404);
+    }
+    require_once __DIR__ . '/../lib/images.php';
+    if (!webp_supported()) {
+        throw new ApiError('This server cannot write WebP images.', 501);
+    }
+    json_out(convert_existing_images($CONFIG['uploads_dir']));
 }

@@ -8,7 +8,7 @@ declare(strict_types=1);
  */
 
 /** Bump whenever the statements below change, to re-run them once. */
-const SCHEMA_VERSION = 10;
+const SCHEMA_VERSION = 11;
 
 /**
  * Cheap gate in front of the real work. Without it every single API request
@@ -214,6 +214,7 @@ function migrate_run(): void
     add_products_faq_once();
     add_journal_once();
     add_products_filter_grid_once();
+    split_products_pages_once();
 }
 
 /**
@@ -405,6 +406,7 @@ function seed_settings(): void
     setting_default('nav_items', json_encode([]));
     setting_default('nav_bg_color', '#ffffff');
     setting_default('nav_align', 'left');
+    setting_default('related_count', '8');
     setting_default('ga_measurement_id', '');
     setting_default('search_console_token', '');
     setting_default('og_image_url', '');
@@ -746,4 +748,84 @@ function add_products_filter_grid_once(): void
             'limit'      => 0,
         ]),
     ]);
+}
+
+/**
+ * Splits browsing from listing.
+ *
+ * /products used to do both: a parallax category browser AND a product grid.
+ * The grid moves to /products on its own ("All Products", with the category
+ * filter), and the browser moves to a new /explore-category page. /products
+ * keeps its URL because that is what people and search engines already have,
+ * and it is the one they expect to hold a product list.
+ */
+function split_products_pages_once(): void
+{
+    if (db()->query("SELECT `value` FROM settings WHERE `key` = 'split_products_v1'")->fetchColumn() !== false) {
+        return;
+    }
+    db()->prepare('INSERT IGNORE INTO settings (`key`, `value`) VALUES (?, ?)')
+        ->execute(['split_products_v1', '1']);
+
+    $productsId = db()->query("SELECT id FROM pages WHERE slug = 'products' LIMIT 1")->fetchColumn();
+    if ($productsId === false) {
+        return;
+    }
+    $productsId = (int) $productsId;
+
+    // The browser page, sitting right after the products page in the menu.
+    $exploreId = db()->query("SELECT id FROM pages WHERE slug = 'explore-category' LIMIT 1")->fetchColumn();
+    if ($exploreId === false) {
+        $order = (int) db()->query("SELECT nav_order FROM pages WHERE id = $productsId")->fetchColumn();
+        db()->prepare(
+            "INSERT INTO pages (slug, title, nav_label, nav_order, in_nav, status, meta_title,
+                                meta_description)
+             VALUES ('explore-category', 'Explore category', 'Explore category', ?, 1,
+                     'published', 'Explore category', ?)"
+        )->execute([$order + 1, 'Browse our range by dye class and type.']);
+        $exploreId = (int) db()->lastInsertId();
+    } else {
+        $exploreId = (int) $exploreId;
+    }
+
+    // Move the category browser across, and give it a heading of its own.
+    db()->prepare("UPDATE blocks SET page_id = ?, sort_order = 1 WHERE page_id = ? AND type = 'parallax'")
+        ->execute([$exploreId, $productsId]);
+
+    $hasHero = db()->prepare("SELECT COUNT(*) FROM blocks WHERE page_id = ? AND type = 'pagehero'");
+    $hasHero->execute([$exploreId]);
+    if ((int) $hasHero->fetchColumn() === 0) {
+        db()->prepare(
+            'INSERT INTO blocks (page_id, type, sort_order, visible, data) VALUES (?, ?, 0, 1, ?)'
+        )->execute([
+            $exploreId,
+            'pagehero',
+            json_col([
+                'eyebrow'  => 'Our range',
+                'title'    => 'Explore category',
+                'subtitle' => 'Pick a dye class to see its types and products.',
+            ]),
+        ]);
+    }
+
+    // Rename the remaining page and retitle its header block.
+    db()->prepare("UPDATE pages SET title = 'All Products', nav_label = 'All Products',
+                          meta_title = 'All Products' WHERE id = ?")
+        ->execute([$productsId]);
+
+    $hero = db()->prepare("SELECT id, data FROM blocks WHERE page_id = ? AND type = 'pagehero' LIMIT 1");
+    $hero->execute([$productsId]);
+    if ($row = $hero->fetch()) {
+        $data = decode_json_col($row['data']);
+        $data['title'] = 'All Products';
+        $data['subtitle'] = 'Every product we supply. Use the filter to narrow by category.';
+        db()->prepare('UPDATE blocks SET data = ? WHERE id = ?')
+            ->execute([json_col($data), $row['id']]);
+    }
+
+    // Close the gap left by the moved block.
+    $i = 0;
+    foreach (db()->query("SELECT id FROM blocks WHERE page_id = $productsId ORDER BY sort_order ASC")->fetchAll() as $b) {
+        db()->prepare('UPDATE blocks SET sort_order = ? WHERE id = ?')->execute([$i++, $b['id']]);
+    }
 }

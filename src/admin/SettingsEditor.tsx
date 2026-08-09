@@ -669,6 +669,19 @@ export default function SettingsEditor() {
             </Field>
           </div>
 
+          <Field
+            label="Related products to show"
+            hint="On a product page, how many other products from the same category to show underneath."
+          >
+            <Input
+              type="number"
+              min={0}
+              max={24}
+              value={s.related_count ?? 8}
+              onChange={(e) => set('related_count', e.target.value)}
+            />
+          </Field>
+
           <p className="text-xs text-gray-400">
             Your sitemap is generated automatically at <code>/sitemap.xml</code> — submit that URL
             in Google Search Console.

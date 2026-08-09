@@ -110,6 +110,8 @@ export interface Product {
   name: string
   categoryId: number | null
   category: string
+  /** Used to fetch related products and link back to the category. */
+  categorySlug: string
   ciName: string
   casNo: string
   form: string

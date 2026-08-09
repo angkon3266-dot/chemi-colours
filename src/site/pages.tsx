@@ -7,6 +7,7 @@ import type { Page, Product } from '../lib/types'
 import { Blocks } from './Blocks'
 import ContactForm from './ContactForm'
 import ContactActions from './ContactActions'
+import ProductCard from './ProductCard'
 
 function useDocTitle(title?: string) {
   const { settings } = useSite()
@@ -145,31 +146,7 @@ export function ProductDetail() {
         </Link>
 
         <div className="mt-6 grid lg:grid-cols-2 gap-8 lg:gap-12 items-start">
-          <div className="flex flex-col gap-3">
-            <div className="rounded-2xl sm:rounded-3xl overflow-hidden bg-gray-50 aspect-[4/3]">
-              {product.image ? (
-                <img
-                  src={product.image}
-                  alt={product.name}
-                  className="w-full h-full object-cover"
-                />
-              ) : (
-                <div
-                  className="w-full h-full"
-                  style={{ backgroundColor: '#f3f4f6' }}
-                />
-              )}
-            </div>
-            {product.gallery.length > 0 && (
-              <div className="grid grid-cols-4 gap-2">
-                {product.gallery.map((g, i) => (
-                  <div key={i} className="rounded-xl overflow-hidden bg-gray-50 aspect-square">
-                    <img src={g} alt="" loading="lazy" className="w-full h-full object-cover" />
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
+          <ProductGallery product={product} />
 
           <div>
             {product.category && (
@@ -278,9 +255,6 @@ export function ProductDetail() {
             <p className="mt-3 text-gray-500 leading-relaxed">
               Tell us your substrate and volume — we'll send pricing and a technical data sheet.
             </p>
-            <div className="mt-6">
-              <ContactActions subject={product.name} size="sm" />
-            </div>
           </div>
           <ContactForm
             collapsible
@@ -289,7 +263,102 @@ export function ProductDetail() {
             openSignal={enquirySignal}
           />
         </div>
+
+        <RelatedProducts product={product} />
       </div>
     </div>
+  )
+}
+
+/** Main image with clickable thumbnails, so several photos are actually usable. */
+function ProductGallery({ product }: { product: Product }) {
+  const images = [product.image, ...product.gallery].filter(Boolean)
+  const [active, setActive] = useState(0)
+
+  // A different product may have fewer images than the one before it.
+  useEffect(() => setActive(0), [product.slug])
+
+  const current = images[active] || images[0] || ''
+
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="rounded-2xl sm:rounded-3xl overflow-hidden bg-gray-50 aspect-[4/3]">
+        {current ? (
+          <img src={current} alt={product.name} className="w-full h-full object-cover" />
+        ) : (
+          <div className="w-full h-full bg-gray-100" />
+        )}
+      </div>
+
+      {images.length > 1 && (
+        <div className="grid grid-cols-5 gap-2">
+          {images.map((g, i) => (
+            <button
+              key={g + i}
+              type="button"
+              onClick={() => setActive(i)}
+              aria-label={`Show image ${i + 1}`}
+              aria-current={i === active}
+              className={`rounded-xl overflow-hidden bg-gray-50 aspect-square border-2 transition-colors ${
+                i === active ? 'border-black' : 'border-transparent hover:border-gray-300'
+              }`}
+            >
+              <img src={g} alt="" loading="lazy" className="w-full h-full object-cover" />
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+/** Other products in the same category. */
+function RelatedProducts({ product }: { product: Product }) {
+  const { settings } = useSite()
+  const [items, setItems] = useState<Product[]>([])
+  const limit = Math.max(1, Number(settings.related_count) || 8)
+
+  useEffect(() => {
+    if (!product.categorySlug) {
+      setItems([])
+      return
+    }
+    let cancelled = false
+    api
+      // Fetch one extra: this product itself is filtered out below.
+      .get<Product[]>(`/products?categories=${product.categorySlug}&limit=${limit + 1}`)
+      .then((list) => {
+        if (cancelled) return
+        setItems(list.filter((p) => p.slug !== product.slug).slice(0, limit))
+      })
+      .catch(() => !cancelled && setItems([]))
+    return () => {
+      cancelled = true
+    }
+  }, [product.slug, product.categorySlug, limit])
+
+  if (items.length === 0) return null
+
+  return (
+    <section className="mt-16">
+      <div className="flex items-end justify-between gap-4 flex-wrap mb-6">
+        <h2 className="text-2xl sm:text-3xl font-medium text-black">
+          More in {product.category || 'this range'}
+        </h2>
+        {product.categorySlug && (
+          <Link
+            to={`/category/${product.categorySlug}`}
+            className="text-sm font-semibold text-gray-700 hover:text-black"
+          >
+            View all →
+          </Link>
+        )}
+      </div>
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-5">
+        {items.map((p) => (
+          <ProductCard key={p.id} product={p} />
+        ))}
+      </div>
+    </section>
   )
 }

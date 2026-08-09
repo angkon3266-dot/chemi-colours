@@ -13,6 +13,8 @@ export default function MediaPage() {
   const [linkKind, setLinkKind] = useState<'image' | 'video' | 'doc'>('video')
   const [filter, setFilter] = useState<'' | 'image' | 'video' | 'doc'>('')
   const [copied, setCopied] = useState<number | null>(null)
+  const [optimising, setOptimising] = useState(false)
+  const [optimiseMsg, setOptimiseMsg] = useState('')
 
   const load = () => {
     setLoading(true)
@@ -57,6 +59,28 @@ export default function MediaPage() {
       setItems((prev) => prev.filter((x) => x.id !== m.id))
     } catch (e: any) {
       setError(e.message)
+    }
+  }
+
+  /** Converts images uploaded before WebP conversion existed. */
+  const optimise = async () => {
+    setOptimising(true)
+    setOptimiseMsg('')
+    try {
+      const r = await api.post<{ converted: number; skipped: number; savedBytes: number }>(
+        '/admin/optimise'
+      )
+      const mb = (r.savedBytes / (1024 * 1024)).toFixed(1)
+      setOptimiseMsg(
+        r.converted === 0
+          ? 'Everything is already optimised.'
+          : `Converted ${r.converted} image${r.converted === 1 ? '' : 's'} and saved ${mb} MB.`
+      )
+      load()
+    } catch (e: any) {
+      setError(e.message)
+    } finally {
+      setOptimising(false)
     }
   }
 
@@ -129,6 +153,22 @@ export default function MediaPage() {
           </div>
         </Card>
       </div>
+
+      <Card className="mt-4">
+        <div className="flex items-start justify-between gap-4 flex-wrap">
+          <div>
+            <h2 className="text-sm font-semibold text-black">Image optimisation</h2>
+            <p className="text-xs text-gray-400 mt-1 max-w-md">
+              New uploads are converted to WebP automatically. Run this once to convert images
+              uploaded earlier — originals are kept on disk, so nothing is lost.
+            </p>
+            {optimiseMsg && <p className="text-sm text-green-700 mt-2">{optimiseMsg}</p>}
+          </div>
+          <Button type="button" variant="ghost" onClick={optimise} disabled={optimising}>
+            {optimising ? 'Converting…' : 'Optimise existing images'}
+          </Button>
+        </div>
+      </Card>
 
       {error && <p className="mt-4 text-sm text-red-600">{error}</p>}
 
