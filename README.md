@@ -1,7 +1,7 @@
 # Chemi Colours
 
 Marketing site + content management for a dyestuff supplier.
-Live at **https://chemicolours.noychoy.com**
+Live at **https://chemicolours.com**
 
 ## Stack
 
@@ -18,31 +18,35 @@ Live at **https://chemicolours.noychoy.com**
 ```
 src/
   lib/        API client, types, site-wide content provider
-  site/       Public website (layout, nav, footer, blocks, product pages)
+  site/       Public website (layout, nav, footer, blocks, product pages, journal)
   admin/      Admin panel (/admin)
 public/
   api/        PHP API — copied verbatim into the build output
-    lib/      bootstrap (config + PDO), auth, sanitiser, schema/migrations
+    lib/      bootstrap (config + PDO), auth, sanitiser, schema/migrations, analytics, images
     routes/   public, auth, admin
-  .htaccess   SPA rewrites, security headers, cache policy
+  render.php  Serves index.html with real per-page <title>/OG tags for crawlers and link previews
+  sitemap.php Generated XML sitemap from published pages/categories/products/posts
+  .htaccess   SPA rewrites (via render.php), security headers, cache policy
   uploads/    User uploads (kept across deploys; PHP execution disabled)
 ```
 
 The database schema is created and seeded automatically on the first API
-request — see `public/api/lib/schema.php`. It is idempotent, so it is safe to
-run on every request.
+request — see `public/api/lib/schema.php`. It is idempotent and gated behind a
+stored `schema_version`, so it costs nothing on requests after the first.
 
 ## Configuration
 
 Database credentials live **outside the web root**, at
-`/home/noycuuae/chemicolours_config.php` on the server. It is deliberately not
+`/home/noycuuae/chemicolours_config.php` on the server, shared by every
+sibling docroot under `/home/noycuuae/` (see `public/api/lib/bootstrap.php`,
+which resolves the config path via `dirname(DOCROOT)`). It is deliberately not
 in git. If the account is ever rebuilt, recreate it:
 
 ```php
 <?php
 return [
     'db' => ['host' => 'localhost', 'name' => '…', 'user' => '…', 'pass' => '…'],
-    'uploads_dir' => '/home/noycuuae/chemicolours.noychoy/uploads',
+    'uploads_dir' => '/home/noycuuae/chemicolours.com/uploads',
     'debug' => false,
 ];
 ```
@@ -50,23 +54,33 @@ return [
 ## Admin panel
 
 `/admin`. The first visit asks you to create the administrator account; after
-that it is an email + password login. Passwords are hashed with
-`password_hash()`. Login is rate-limited to 8 failed attempts per IP per 15
-minutes, and every write requires a CSRF token.
+that it is an email + password login, and more admins can be added under
+Settings. Passwords are hashed with `password_hash()`. Login is rate-limited
+to 8 failed attempts per IP per 15 minutes, and every write requires a CSRF
+token.
 
 From the panel you can manage:
 
-- **Settings** — background video (upload or URL), poster image, contact
-  details, social links, contact-form copy and tags, footer columns.
+- **Settings** — background video (upload or URL), poster image, logo,
+  contact/WhatsApp/call details, social links, menu (plain links, a dropdown
+  driven by one category, an all-categories mega menu, or hand-written
+  dropdown links), menu bar colour/position, footer, Google map, SEO
+  defaults (share image, description, GA measurement ID, Search Console
+  token), and admin accounts.
 - **Pages** — build any page from blocks (hero, page header, text, features,
-  stats, timeline, product grid, gallery, CTA, contact, FAQ, logos). Reorder,
-  hide, publish/draft, set menu label and order, SEO title/description.
-- **Products** — full technical spec: category, C.I. name, CAS number, shade
-  swatch, light/wash/rub fastness, suitable fibres, image gallery and a
-  spec-sheet PDF.
-- **Media** — upload images (10 MB), video (100 MB) and PDFs (20 MB), or
-  register an external CDN URL.
+  stats, timeline, product/category grid with filtering, gallery, CTA,
+  contact, FAQ, logos, testimonials, latest journal posts, map, parallax
+  category browser, director message). Reorder, hide, publish/draft, set menu
+  label/order, SEO title/description.
+- **Products** — supply-chemical spec: category (with sub-categories), C.I.
+  name, CAS number, form, strength, packaging, MOQ, HS code, shelf life,
+  storage, owner-defined spec rows, image gallery, spec-sheet PDF.
+- **Journal** — blog-style posts with a cover image, excerpt and body.
+- **Media** — upload images (10 MB, auto-converted to WebP), video (100 MB)
+  and PDFs (20 MB), or register an external CDN URL.
 - **Enquiries** — every contact-form submission, with reply/read/archive.
+- **Visitors** — first-party page-view analytics (no cookies, salted daily
+  visitor hash), independent of the optional Google Analytics ID.
 
 ## Development
 
@@ -87,9 +101,21 @@ site and copies `dist/` to the server over SSH, then checks that the homepage
 and API both return 200.
 
 The deploy key is restricted on the server: `authorized_keys` forces
-`scp -r -t <docroot>`, so it can only write files into the site directory — it
-cannot open a shell or touch anything else. The private half is stored in the
+`command="scp -r -t /home/noycuuae/chemicolours.com/"`, so it can only write
+files into that one directory — it cannot open a shell or touch anything else,
+including the sibling `chemicolours.noychoy` docroot or the git repository at
+`/home/noycuuae/repositories/chemi-colours`. The private half is stored in the
 GitHub repository secret `DEPLOY_SSH_KEY`.
 
 Uploads survive deploys because `scp` only overwrites the files it ships and
 `uploads/` is not part of the build.
+
+### Manual deploy (if CI is ever unavailable)
+
+```bash
+npm run build
+scp -O -P 2036 -r dist/* <ssh-alias-or-user@host>:/home/noycuuae/chemicolours.com/
+```
+
+Requires an SSH key with normal (non-restricted) access to the account, since
+the CI key above can only be used from GitHub Actions' own scp invocation.

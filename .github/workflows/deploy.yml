@@ -28,17 +28,19 @@ jobs:
           chmod 600 ~/.ssh/deploy_key
           ssh-keyscan -p 2036 91.98.176.112 >> ~/.ssh/known_hosts 2>/dev/null
 
-          # dotglob so dist/.htaccess is included; the server side runs a
-          # forced `scp -r -t <docroot>` so everything lands in the web root.
+          # dotglob so dist/.htaccess is included. The destination path here is
+          # ignored — the server-side key is forced to
+          # `scp -r -t /home/noycuuae/chemicolours.com/`, so that is the only
+          # place this can ever write regardless of what we pass.
           shopt -s dotglob
           scp -O -P 2036 -i ~/.ssh/deploy_key -r dist/* noycuuae@91.98.176.112:
 
       - name: Verify the site responds
         run: |
           set -euo pipefail
-          code=$(curl -s -o /dev/null -w '%{http_code}' https://chemicolours.noychoy.com/)
+          code=$(curl -s -o /dev/null -w '%{http_code}' https://chemicolours.com/)
           echo "Homepage returned $code"
           test "$code" = "200"
-          api=$(curl -s -o /dev/null -w '%{http_code}' https://chemicolours.noychoy.com/api/bootstrap)
+          api=$(curl -s -o /dev/null -w '%{http_code}' https://chemicolours.com/api/bootstrap)
           echo "API returned $api"
           test "$api" = "200"

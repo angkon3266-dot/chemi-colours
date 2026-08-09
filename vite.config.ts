@@ -10,12 +10,12 @@ export default defineConfig({
     // NOTE: this means local development reads and writes PRODUCTION data.
     proxy: {
       '/api': {
-        target: 'https://chemicolours.noychoy.com',
+        target: 'https://chemicolours.com',
         changeOrigin: true,
         secure: true,
       },
       '/uploads': {
-        target: 'https://chemicolours.noychoy.com',
+        target: 'https://chemicolours.com',
         changeOrigin: true,
         secure: true,
       },
