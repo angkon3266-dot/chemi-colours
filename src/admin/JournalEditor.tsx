@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import { Plus, Trash2, ArrowLeft } from 'lucide-react'
 import { api } from '../lib/api'
 import type { MediaItem, Post } from '../lib/types'
+import RichTextEditor from './RichTextEditor'
 import {
   Button, Card, Field, Input, Modal, Select, Textarea, useSaveState, MediaPicker,
 } from './ui'
@@ -240,14 +241,16 @@ export function PostEditor() {
             />
           </div>
           <div className="sm:col-span-2">
-            <Field label="Body" hint="Basic HTML allowed: <p>, <h2>, <strong>, <ul>, <a>…">
-              <Textarea
-                rows={16}
-                value={post.body}
-                onChange={(e) => set('body', e.target.value)}
-                className="font-mono text-xs"
-              />
-            </Field>
+            <span className="text-sm font-medium text-black">Body</span>
+            <p className="text-xs text-gray-400 mt-0.5 mb-2">
+              Headings, bold/italic/underline, lists, quotes, links, and images — drag an
+              image in, paste one, or use the image button to upload or pick from your library.
+            </p>
+            <RichTextEditor
+              value={post.body}
+              onChange={(html) => set('body', html)}
+              placeholder="Write the post…"
+            />
           </div>
         </div>
       </Card>

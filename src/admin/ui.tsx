@@ -402,7 +402,10 @@ export function MediaLibraryModal({
                   <div className="aspect-[4/3] bg-gray-50 flex items-center justify-center overflow-hidden">
                     <MediaThumb item={m} />
                   </div>
-                  <p className="text-[11px] text-gray-600 px-2 py-1.5 truncate">{m.name}</p>
+                  <p className="text-[11px] text-gray-600 px-2 pt-1.5 truncate">{m.name}</p>
+                  <p className="text-[10px] text-gray-400 px-2 pb-1.5">
+                    {Math.round(m.size / 1024)} KB
+                  </p>
                 </button>
                 <button
                   type="button"

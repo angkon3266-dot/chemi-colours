@@ -3,8 +3,9 @@ import { SlidersHorizontal, X } from 'lucide-react'
 import type { Category } from '../lib/types'
 
 /**
- * Checkbox filter over categories and their sub-categories.
- * Sidebar on desktop, slide-up drawer on mobile.
+ * Checkbox filter over categories and their sub-categories. A single trigger
+ * button sits above the product grid at every breakpoint (no separate
+ * desktop sidebar) and opens a panel with the same checkbox list.
  */
 export default function ProductFilter({
   categories,
@@ -17,7 +18,7 @@ export default function ProductFilter({
   onChange: (next: string[]) => void
   resultCount: number
 }) {
-  const [drawerOpen, setDrawerOpen] = useState(false)
+  const [open, setOpen] = useState(false)
 
   const toggle = (slug: string) =>
     onChange(selected.includes(slug) ? selected.filter((s) => s !== slug) : [...selected, slug])
@@ -76,22 +77,13 @@ export default function ProductFilter({
 
   return (
     <>
-      {/* Desktop sidebar */}
-      <aside className="hidden lg:block w-56 shrink-0">
-        <div className="sticky top-24">
-          <h3 className="text-sm font-semibold text-black mb-4">Filter by category</h3>
-          {body}
-        </div>
-      </aside>
-
-      {/* Mobile trigger */}
       <button
         type="button"
-        onClick={() => setDrawerOpen(true)}
-        className="lg:hidden inline-flex items-center gap-2 text-sm font-medium px-4 py-2.5 rounded-xl border border-gray-200 hover:border-gray-400 transition-colors"
+        onClick={() => setOpen(true)}
+        className="inline-flex items-center gap-2 text-sm font-medium px-4 py-2.5 rounded-xl border border-gray-200 hover:border-gray-400 transition-colors"
       >
         <SlidersHorizontal size={15} />
-        Filter
+        Filter by category
         {selected.length > 0 && (
           <span className="ml-1 bg-black text-white text-xs rounded-full px-2 py-0.5">
             {selected.length}
@@ -99,21 +91,20 @@ export default function ProductFilter({
         )}
       </button>
 
-      {/* Mobile drawer */}
-      {drawerOpen && (
-        <div className="lg:hidden fixed inset-0 z-50 flex items-end">
+      {open && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center sm:justify-center">
           <button
             type="button"
             aria-label="Close filters"
-            onClick={() => setDrawerOpen(false)}
+            onClick={() => setOpen(false)}
             className="absolute inset-0 bg-black/40"
           />
-          <div className="relative w-full max-h-[80vh] overflow-y-auto bg-white rounded-t-3xl p-5 pb-8">
+          <div className="relative w-full sm:max-w-sm sm:mx-4 max-h-[80vh] overflow-y-auto bg-white rounded-t-3xl sm:rounded-3xl p-5 pb-8 sm:pb-6">
             <div className="flex items-center justify-between mb-5">
               <h3 className="text-base font-semibold text-black">Filter by category</h3>
               <button
                 type="button"
-                onClick={() => setDrawerOpen(false)}
+                onClick={() => setOpen(false)}
                 className="w-9 h-9 rounded-lg hover:bg-gray-100 flex items-center justify-center"
                 aria-label="Close"
               >
@@ -123,7 +114,7 @@ export default function ProductFilter({
             {body}
             <button
               type="button"
-              onClick={() => setDrawerOpen(false)}
+              onClick={() => setOpen(false)}
               className="mt-6 w-full bg-black text-white text-sm font-semibold py-3 rounded-2xl hover:bg-gray-800 transition-colors"
             >
               Show {resultCount} product{resultCount === 1 ? '' : 's'}

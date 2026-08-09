@@ -728,11 +728,14 @@ function admin_posts(string $method, array $seg): void
         $b = body();
         $title = plain(field($b, 'title', true), 250);
         $slug = unique_slug('posts', slugify(field($b, 'slug') ?: $title, 'post'));
+        $slug = $slug === '' ? 'post' : $slug;
         $stmt = db()->prepare(
             'INSERT INTO posts (slug, title, excerpt, body, cover_id, author, status, published_at)
              VALUES (?,?,?,?,?,?,?,?)'
         );
-        $stmt->execute([...post_columns($b, $title), $slug === '' ? 'post' : $slug]);
+        // post_columns returns [title, excerpt, body, cover, author, status, published_at] —
+        // slug leads the column list, so it must lead the bound values too.
+        $stmt->execute([$slug, ...post_columns($b, $title)]);
         json_out(['id' => (int) db()->lastInsertId(), 'slug' => $slug], 201);
     }
 

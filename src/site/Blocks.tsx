@@ -393,32 +393,20 @@ function ProductGrid({ data }: { data: Record<string, any> }) {
           </div>
         )}
 
-        {showFilter && categories.length > 0 ? (
-          <div className="flex gap-8 lg:gap-12">
+        {showFilter && categories.length > 0 && (
+          <div className="mb-6">
             <ProductFilter
               categories={categories}
               selected={selected}
               onChange={setSelected}
               resultCount={products.length}
             />
-            <div className="flex-1 min-w-0">
-              <div className="lg:hidden mb-5">
-                <ProductFilter
-                  categories={categories}
-                  selected={selected}
-                  onChange={setSelected}
-                  resultCount={products.length}
-                />
-              </div>
-              <p className="text-sm text-gray-400 mb-4">
-                {loading ? 'Loading…' : `${products.length} product${products.length === 1 ? '' : 's'}`}
-              </p>
-              {grid}
-            </div>
           </div>
-        ) : (
-          grid
         )}
+        <p className="text-sm text-gray-400 mb-4">
+          {loading ? 'Loading…' : `${products.length} product${products.length === 1 ? '' : 's'}`}
+        </p>
+        {grid}
       </div>
     </section>
   )

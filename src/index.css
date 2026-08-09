@@ -61,6 +61,27 @@
   color: #6b7280;
   margin: 1rem 0;
 }
+.prose-chemi img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 0.75rem;
+  margin: 1.25rem 0;
+  display: block;
+}
+.prose-chemi u {
+  text-decoration: underline;
+}
+
+/* TipTap's own editing surface reuses .prose-chemi for a true "what you see
+   is what publishes" preview, but it is being typed into, not read — no
+   point placing every child paragraph apart until there is more than one. */
+.prose-chemi.ProseMirror p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  color: #9ca3af;
+  float: left;
+  height: 0;
+  pointer-events: none;
+}
 
 /* Contact-form expand. Height is not animated (the content height is unknown
    and grid-fr collapsed inside the hero's flex layout); a short fade + slide

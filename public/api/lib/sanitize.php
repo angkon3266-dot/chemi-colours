@@ -20,6 +20,10 @@ const ALLOWED_TAGS = [
     'blockquote' => [],
     'a'  => ['href', 'title', 'target', 'rel'],
     'span' => [],
+    // Journal posts can now embed images mid-paragraph. width/height are
+    // whatever the browser reported on insert, kept only so the layout
+    // doesn't jump while the real image loads.
+    'img' => ['src', 'alt', 'title', 'width', 'height'],
 ];
 
 function sanitize_html(string $html): string
@@ -94,8 +98,13 @@ function clean_node(DOMNode $node): void
                 $child->removeAttribute($attr->nodeName);
                 continue;
             }
-            if ($name === 'href' && !safe_url($attr->nodeValue ?? '')) {
-                $child->removeAttribute('href');
+            if (($name === 'href' || $name === 'src') && !safe_url($attr->nodeValue ?? '')) {
+                $child->removeAttribute($attr->nodeName);
+            }
+            // width/height must be plain numbers — nothing that could carry
+            // a CSS expression or other payload through an attribute value.
+            if (($name === 'width' || $name === 'height') && !preg_match('/^\d{1,4}$/', $attr->nodeValue ?? '')) {
+                $child->removeAttribute($attr->nodeName);
             }
         }
 
