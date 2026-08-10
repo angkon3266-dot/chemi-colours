@@ -1,6 +1,12 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
+import {
+  motion,
+  useAnimationFrame,
+  useMotionValue,
+  useReducedMotion,
+} from 'framer-motion'
 import { ChevronLeft, ChevronRight, MapPin } from 'lucide-react'
 import { api } from '../lib/api'
 import { useSite } from '../lib/site'
@@ -884,35 +890,99 @@ function MapBlock({ data }: { data: Record<string, any> }) {
 
 
 /* ---------------------------------------------------------- testimonials -- */
+function TestimonialCard({ t }: { t: any }) {
+  return (
+    <figure className="shrink-0 w-[280px] sm:w-[340px] rounded-2xl border border-gray-200 bg-white p-5 sm:p-6 flex flex-col gap-4">
+      <blockquote className="text-gray-700 leading-relaxed text-sm sm:text-base">
+        “{t.quote}”
+      </blockquote>
+      <figcaption className="mt-auto flex items-center gap-3">
+        {t.logo && (
+          <img src={t.logo} alt="" className="w-9 h-9 rounded-lg object-contain bg-gray-50" />
+        )}
+        <div className="min-w-0">
+          <div className="text-sm font-semibold text-black truncate">{t.name}</div>
+          {t.role && <div className="text-xs text-gray-500 truncate">{t.role}</div>}
+        </div>
+      </figcaption>
+    </figure>
+  )
+}
+
+/**
+ * Quotes drift past in an unbroken rail rather than sitting in a static grid —
+ * a few short testimonials read as more active this way than as three cards
+ * on a page. Pauses on hover so a quote can actually be read, and respects
+ * prefers-reduced-motion by not moving at all.
+ */
 function Testimonials({ data }: { data: Record<string, any> }) {
   const items: any[] = Array.isArray(data.items) ? data.items : []
+  const reduceMotion = useReducedMotion()
+  const trackRef = useRef<HTMLDivElement>(null)
+  const x = useMotionValue(0)
+  const [setWidth, setSetWidth] = useState(0)
+  const [hovered, setHovered] = useState(false)
+
+  // Fewer than three quotes duplicated for the loop would show the same card
+  // twice in one screenful — a static grid reads better at that point.
+  const loopable = items.length >= 3
+
+  useLayoutEffect(() => {
+    if (!loopable) return
+    const node = trackRef.current
+    if (!node) return
+    const measure = () => setSetWidth(node.scrollWidth / 2)
+    measure()
+    const observer = new ResizeObserver(measure)
+    observer.observe(node)
+    return () => observer.disconnect()
+  }, [loopable, items.length])
+
+  useAnimationFrame((_, delta) => {
+    if (!loopable || reduceMotion || hovered || setWidth <= 0) return
+    const next = x.get() - 36 * (delta / 1000)
+    x.set(next <= -setWidth ? next + setWidth : next)
+  })
+
   if (items.length === 0) return null
+
   return (
     <section className={SECTION}>
       <div className={INNER}>
         {data.title && (
           <h2 className="text-2xl sm:text-3xl font-medium text-black mb-8">{data.title}</h2>
         )}
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
-          {items.map((t, i) => (
-            <figure
-              key={i}
-              className="rounded-2xl border border-gray-200 p-5 sm:p-6 flex flex-col gap-4"
-            >
-              <blockquote className="text-gray-700 leading-relaxed">“{t.quote}”</blockquote>
-              <figcaption className="mt-auto flex items-center gap-3">
-                {t.logo && (
-                  <img src={t.logo} alt="" className="w-9 h-9 rounded-lg object-contain bg-gray-50" />
-                )}
-                <div className="min-w-0">
-                  <div className="text-sm font-semibold text-black truncate">{t.name}</div>
-                  {t.role && <div className="text-xs text-gray-500 truncate">{t.role}</div>}
-                </div>
-              </figcaption>
-            </figure>
-          ))}
-        </div>
       </div>
+
+      {loopable ? (
+        <div
+          className="relative overflow-hidden"
+          onMouseEnter={() => setHovered(true)}
+          onMouseLeave={() => setHovered(false)}
+        >
+          <motion.div
+            ref={trackRef}
+            className="flex w-max gap-4 sm:gap-5 px-4 sm:px-6"
+            style={{ x: reduceMotion ? 0 : x }}
+          >
+            {[...items, ...items].map((t, i) => (
+              <TestimonialCard key={i} t={t} />
+            ))}
+          </motion.div>
+          {/* Fades the rail into the page background rather than a hard edge,
+              so cards look like they're arriving/leaving, not getting cut off. */}
+          <div className="pointer-events-none absolute inset-y-0 left-0 w-10 sm:w-20 bg-gradient-to-r from-page to-transparent" />
+          <div className="pointer-events-none absolute inset-y-0 right-0 w-10 sm:w-20 bg-gradient-to-l from-page to-transparent" />
+        </div>
+      ) : (
+        <div className={INNER}>
+          <div className="grid sm:grid-cols-2 gap-4 sm:gap-5">
+            {items.map((t, i) => (
+              <TestimonialCard key={i} t={t} />
+            ))}
+          </div>
+        </div>
+      )}
     </section>
   )
 }
