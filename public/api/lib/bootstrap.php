@@ -128,7 +128,7 @@ function json_out(mixed $data, int $status = 200): never
 function field(array $src, string $key, bool $required = false, string $default = ''): string
 {
     $v = $src[$key] ?? null;
-    if ($v === null || (is_string($v) && trim($v) === '')) {
+    if ($v === null) {
         if ($required) {
             throw new ApiError("Field \"$key\" is required.", 422);
         }
@@ -137,7 +137,17 @@ function field(array $src, string $key, bool $required = false, string $default 
     if (!is_scalar($v)) {
         throw new ApiError("Field \"$key\" must be a string.", 422);
     }
-    return trim((string) $v);
+    // Checked after the scalar cast, not before: a JSON `false` is scalar but
+    // neither null nor a string, so testing emptiness only on the original
+    // $v let a required field save as "" with no error.
+    $s = trim((string) $v);
+    if ($s === '') {
+        if ($required) {
+            throw new ApiError("Field \"$key\" is required.", 422);
+        }
+        return $default;
+    }
+    return $s;
 }
 
 function int_field(array $src, string $key, int $default = 0): int

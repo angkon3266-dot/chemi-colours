@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Trash2, Upload, Link2, Copy, Check } from 'lucide-react'
 import { api } from '../lib/api'
 import type { MediaItem } from '../lib/types'
@@ -16,13 +16,24 @@ export default function MediaPage() {
   const [optimising, setOptimising] = useState(false)
   const [optimiseMsg, setOptimiseMsg] = useState('')
 
+  // Tracks the most recently issued request so an older, slower response
+  // (e.g. from switching filter tabs quickly) can't land after a newer one
+  // and show media that doesn't match the currently-selected tab.
+  const requestId = useRef(0)
   const load = () => {
+    const id = ++requestId.current
     setLoading(true)
     api
       .get<MediaItem[]>(`/admin/media${filter ? `?kind=${filter}` : ''}`)
-      .then(setItems)
-      .catch((e) => setError(e.message))
-      .finally(() => setLoading(false))
+      .then((r) => {
+        if (id === requestId.current) setItems(r)
+      })
+      .catch((e) => {
+        if (id === requestId.current) setError(e.message)
+      })
+      .finally(() => {
+        if (id === requestId.current) setLoading(false)
+      })
   }
   useEffect(load, [filter])
 

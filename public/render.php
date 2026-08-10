@@ -68,9 +68,23 @@ try {
             $type = 'article';
         }
     } elseif (($seg[0] ?? '') === 'category' && isset($seg[1])) {
-        $slug = $seg[2] ?? $seg[1];
-        $stmt = db()->prepare('SELECT * FROM categories WHERE slug = ? LIMIT 1');
-        $stmt->execute([$slug]);
+        // Matching by slug alone (ignoring $seg[1]) would resolve any
+        // /category/:parent/:child URL as long as SOME category anywhere
+        // has that slug, even when it isn't really a child of :parent —
+        // the actual site route 404s that case. Require the same parentage
+        // the client route enforces, so a broken link doesn't get treated
+        // as real for meta tags or analytics.
+        if (isset($seg[2])) {
+            $stmt = db()->prepare(
+                'SELECT c.* FROM categories c
+                 JOIN categories p ON p.id = c.parent_id
+                 WHERE c.slug = ? AND p.slug = ? LIMIT 1'
+            );
+            $stmt->execute([$seg[2], $seg[1]]);
+        } else {
+            $stmt = db()->prepare('SELECT * FROM categories WHERE slug = ? LIMIT 1');
+            $stmt->execute([$seg[1]]);
+        }
         if ($row = $stmt->fetch()) {
             $title = $row['name'];
             $description = $row['summary'] ?: $description;

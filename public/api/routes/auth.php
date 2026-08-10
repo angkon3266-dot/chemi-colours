@@ -81,6 +81,7 @@ function handle_auth(string $method, array $seg): void
     }
 
     if ($method === 'POST' && $action === 'logout') {
+        require_csrf();
         start_session();
         $_SESSION = [];
         if (ini_get('session.use_cookies')) {

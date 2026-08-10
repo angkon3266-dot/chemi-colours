@@ -84,7 +84,12 @@ function clean_node(DOMNode $node): void
         }
 
         if (!array_key_exists($tag, ALLOWED_TAGS)) {
-            // Unknown tag: keep its text content, drop the tag itself.
+            // Unknown tag: keep its content, drop the tag itself. Clean it
+            // BEFORE unwrapping — the promoted children leave this function's
+            // loop (which walks a snapshot taken at the top) and are never
+            // visited again, so a <script> nested inside an unknown wrapper
+            // like <div> or <table> would otherwise survive untouched.
+            clean_node($child);
             while ($child->firstChild) {
                 $child->parentNode?->insertBefore($child->firstChild, $child);
             }
@@ -124,7 +129,9 @@ function safe_url(string $url): bool
     if ($u === '') {
         return false;
     }
-    if (preg_match('#^(/|\#)#', $u)) {
+    // Exactly one leading slash: "//evil.example/x" is protocol-relative and
+    // browsers resolve it to https://evil.example/x, not a same-site path.
+    if (preg_match('#^/(?!/)#', $u) || str_starts_with($u, '#')) {
         return true;
     }
     return (bool) preg_match('#^(https?://|mailto:|tel:)#i', $u);

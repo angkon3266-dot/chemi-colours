@@ -80,6 +80,17 @@ function hexToRgb(hex: string): [number, number, number] {
   ]
 }
 
+/**
+ * Canonical #rrggbb — native <input type="color"> silently rejects anything
+ * else (shorthand #abc, or a bare hex with no leading #) and renders its
+ * swatch as black, even though isHex() below accepts those same shapes.
+ */
+export function toHex6(value: string): string {
+  const [r, g, b] = hexToRgb(value)
+  const two = (n: number) => n.toString(16).padStart(2, '0')
+  return `#${two(r)}${two(g)}${two(b)}`
+}
+
 /** True when the string is a colour we can actually parse (#abc or #aabbcc). */
 export function isHex(value: unknown): boolean {
   return typeof value === 'string' && /^#?([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(value.trim())

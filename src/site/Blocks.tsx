@@ -125,8 +125,7 @@ function Hero({ data }: { data: Record<string, any> }) {
             <p className="text-white text-3xl sm:text-4xl xl:text-5xl font-medium leading-tight drop-shadow-lg">
               {data.headline}
               <br />
-              {data.headline2}
-              {data.accent && ` ${data.accent}`}
+              {[data.headline2, data.accent].filter(Boolean).join(' ')}
             </p>
             {/* The floating copy above is desktop-only, so this in-flow one
                 covers mobile. Only one is ever visible at a breakpoint, and
@@ -332,26 +331,24 @@ function ProductGrid({ data }: { data: Record<string, any> }) {
 
   const showFilter = !!data.showFilter
 
-  // The mega menu and category dropdowns link straight here with
-  // ?categories=slug, so the filter has to read the URL, not just local
-  // clicks — and write back to it so the selection survives a refresh,
-  // the back button, and is shareable.
+  // The mega menu, mobile nav and category tiles all link straight here with
+  // ?categories=slug — that has to keep working whether or not THIS block
+  // shows the filter picker UI, so the URL sync is unconditional. showFilter
+  // only controls whether the picker itself renders (below) and whether the
+  // category list is fetched to populate it.
   const [searchParams, setSearchParams] = useSearchParams()
-  const [selected, setSelectedState] = useState<string[]>(() =>
-    showFilter ? (searchParams.get('categories')?.split(',').filter(Boolean) ?? []) : []
+  const [selected, setSelectedState] = useState<string[]>(
+    () => searchParams.get('categories')?.split(',').filter(Boolean) ?? []
   )
   const urlCategories = searchParams.get('categories')
 
   useEffect(() => {
-    if (!showFilter) return
     const next = urlCategories ? urlCategories.split(',').filter(Boolean) : []
     setSelectedState((prev) => (prev.join(',') === next.join(',') ? prev : next))
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [urlCategories, showFilter])
+  }, [urlCategories])
 
   const setSelected = (next: string[]) => {
     setSelectedState(next)
-    if (!showFilter) return
     setSearchParams(
       (prev) => {
         const p = new URLSearchParams(prev)
@@ -495,10 +492,14 @@ function CategoryGrid({ data }: { data: Record<string, any> }) {
     if (source !== 'products') return
     const params = new URLSearchParams()
     if (data.limit) params.set('limit', String(data.limit))
+    let cancelled = false
     api
       .get<Product[]>(`/products?${params}`)
-      .then(setProducts)
-      .catch(() => setProducts([]))
+      .then((p) => !cancelled && setProducts(p))
+      .catch(() => !cancelled && setProducts([]))
+    return () => {
+      cancelled = true
+    }
   }, [source, data.limit])
 
   let tiles: { key: string; name: string; image: string; sub: string; to: string }[] = []
@@ -981,10 +982,14 @@ function Testimonials({ data }: { data: Record<string, any> }) {
 function PostsBlock({ data }: { data: Record<string, any> }) {
   const [posts, setPosts] = useState<Post[]>([])
   useEffect(() => {
+    let cancelled = false
     api
       .get<Post[]>(`/posts?limit=${Number(data.limit) || 3}`)
-      .then(setPosts)
-      .catch(() => setPosts([]))
+      .then((p) => !cancelled && setPosts(p))
+      .catch(() => !cancelled && setPosts([]))
+    return () => {
+      cancelled = true
+    }
   }, [data.limit])
 
   if (posts.length === 0) return null

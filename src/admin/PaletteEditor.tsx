@@ -6,6 +6,7 @@ import {
   isHex,
   paletteFromSettings,
   paletteVars,
+  toHex6,
 } from '../lib/palette'
 import type { Palette } from '../lib/palette'
 import { Button, Card, Input } from './ui'
@@ -121,7 +122,10 @@ export default function PaletteEditor({
                   <input
                     type="color"
                     aria-label={slot.label}
-                    value={value}
+                    // Native colour inputs only accept exact #rrggbb — a
+                    // valid-but-shorthand value like "#abc" would otherwise
+                    // render this swatch as solid black.
+                    value={toHex6(value)}
                     onChange={(e) => set(slot.key, e.target.value)}
                     className="w-10 h-10 rounded-lg border border-gray-200 bg-white p-1 cursor-pointer shrink-0"
                   />
