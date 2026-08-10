@@ -8,7 +8,7 @@ declare(strict_types=1);
  */
 
 /** Bump whenever the statements below change, to re-run them once. */
-const SCHEMA_VERSION = 12;
+const SCHEMA_VERSION = 13;
 
 /**
  * Cheap gate in front of the real work. Without it every single API request
@@ -216,6 +216,12 @@ function migrate_run(): void
     add_products_filter_grid_once();
     split_products_pages_once();
     seed_journal_examples_once();
+    rebuild_home_archroma_once();
+    setting_default('palette_preset', 'brand');
+    setting_default('palette_primary', '');
+    setting_default('palette_accent', '');
+    setting_default('palette_page', '');
+    setting_default('palette_body', '');
 }
 
 /**
@@ -917,4 +923,112 @@ function seed_journal_examples_once(): void
             $p['author'],
         ]);
     }
+}
+
+/**
+ * Restructure the home page along the lines the owner asked for: hero, a
+ * featured carousel, a "who we are" introduction, then the applications we
+ * serve, before the existing certification / showcase / enquiry sections.
+ *
+ * Nothing is deleted — the blocks already on the page keep their content and
+ * simply move down. The carousel is seeded from the owner's own categories
+ * (their images, their words) rather than invented copy, and the introduction
+ * reuses the site's own meta description. Figures and the intro image are left
+ * empty on purpose: those are claims only the owner can make.
+ */
+function rebuild_home_archroma_once(): void
+{
+    if (db()->query("SELECT `value` FROM settings WHERE `key` = 'home_archroma_v1'")->fetchColumn() !== false) {
+        return;
+    }
+    db()->prepare('INSERT IGNORE INTO settings (`key`, `value`) VALUES (?, ?)')
+        ->execute(['home_archroma_v1', '1']);
+
+    $home = (int) db()->query('SELECT id FROM pages WHERE is_home = 1 LIMIT 1')->fetchColumn();
+    if (!$home) {
+        return;
+    }
+
+    // Re-running the page builder must not stack duplicates if this install
+    // already picked the blocks up some other way.
+    $existing = db()->prepare(
+        "SELECT COUNT(*) FROM blocks WHERE page_id = ? AND type IN ('carousel','intro','cards')"
+    );
+    $existing->execute([$home]);
+    if ((int) $existing->fetchColumn() > 0) {
+        return;
+    }
+
+    // Everything except the hero slides down to make room for the new sections.
+    db()->prepare("UPDATE blocks SET sort_order = sort_order + 20 WHERE page_id = ? AND type <> 'hero'")
+        ->execute([$home]);
+
+    $categories = db()->query(
+        "SELECT c.name, c.slug, c.summary, m.filename, m.external_url
+           FROM categories c
+           LEFT JOIN media m ON m.id = c.image_id
+          WHERE c.parent_id IS NULL
+          ORDER BY c.sort_order, c.id
+          LIMIT 4"
+    )->fetchAll();
+
+    $slides = [];
+    foreach ($categories as $c) {
+        $image = ($c['external_url'] ?? '') !== ''
+            ? $c['external_url']
+            : (($c['filename'] ?? '') !== '' ? '/uploads/' . $c['filename'] : '');
+        $slides[] = [
+            'eyebrow'   => 'Our range',
+            'title'     => $c['name'],
+            'text'      => (string) ($c['summary'] ?? ''),
+            'image'     => $image,
+            'linkLabel' => 'Explore ' . $c['name'],
+            'linkHref'  => '/category/' . $c['slug'],
+        ];
+    }
+
+    if ($slides) {
+        add_block($home, 'carousel', 1, ['autoplay' => true, 'items' => $slides]);
+    }
+
+    $description = (string) db()->query(
+        "SELECT `value` FROM settings WHERE `key` = 'meta_description'"
+    )->fetchColumn();
+    $siteName = (string) db()->query(
+        "SELECT `value` FROM settings WHERE `key` = 'site_name'"
+    )->fetchColumn();
+
+    add_block($home, 'intro', 2, [
+        'eyebrow'   => 'Who we are',
+        'title'     => 'We are ' . ($siteName !== '' ? $siteName : 'Chemi Colours'),
+        // The owner's own description of the business, not a new claim.
+        'html'      => $description !== ''
+            ? '<p>' . htmlspecialchars($description, ENT_QUOTES, 'UTF-8') . '</p>'
+            : '',
+        'image'     => '',
+        'imageSide' => 'left',
+        // Deliberately empty: only the owner can stand behind a number.
+        'figures'   => [],
+        'buttons'   => [
+            ['label' => 'Explore our products', 'href' => '/products', 'style' => 'accent'],
+            ['label' => 'Talk to us', 'href' => '/contact', 'style' => 'outline'],
+        ],
+    ]);
+
+    // Application segments are ordinary textile-industry vocabulary, not
+    // claims about this business, so they are safe to seed. Images are left
+    // for the owner — the cards render as text-only until then.
+    add_block($home, 'cards', 3, [
+        'title'    => 'Applications we serve',
+        'subtitle' => 'Dyes and auxiliaries selected for the substrate and the process they are run on.',
+        'columns'  => '3',
+        'items'    => [
+            ['title' => 'Denim', 'text' => 'Indigo and sulphur dyeing, plus the wash-down and finishing chemistry that follows.', 'image' => '', 'href' => ''],
+            ['title' => 'Knitwear', 'text' => 'Exhaust dyeing of cotton and blended knits, where levelness across the batch decides the result.', 'image' => '', 'href' => ''],
+            ['title' => 'Woven fabrics', 'text' => 'Continuous and pad-batch routes for shirting, bottomweight and uniform cloth.', 'image' => '', 'href' => ''],
+            ['title' => 'Home textiles', 'text' => 'Bed linen, curtains and upholstery, where light and rubbing fastness matter most.', 'image' => '', 'href' => ''],
+            ['title' => 'Terry & towelling', 'text' => 'High-liquor-ratio dyeing on absorbent constructions, with softening at the finishing stage.', 'image' => '', 'href' => ''],
+            ['title' => 'Performance wear', 'text' => 'Disperse dyeing of polyester and synthetic blends, including moisture-management finishes.', 'image' => '', 'href' => ''],
+        ],
+    ]);
 }

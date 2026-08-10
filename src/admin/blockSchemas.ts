@@ -345,11 +345,97 @@ export const BLOCK_SCHEMAS: Record<BlockType, BlockSchema> = {
     ],
     defaults: { title: '', items: [] },
   },
+  carousel: {
+    label: 'Featured carousel',
+    description: 'Rotating slides for news, certifications or featured ranges.',
+    fields: [
+      { key: 'autoplay', label: 'Advance slides automatically', type: 'bool' },
+      {
+        key: 'items', label: 'Slides', type: 'list',
+        itemFields: [
+          { key: 'image', label: 'Image', type: 'media', mediaKind: 'image' },
+          { key: 'eyebrow', label: 'Label above the title', type: 'text', hint: 'e.g. Certification, Partnership' },
+          { key: 'title', label: 'Title', type: 'text' },
+          { key: 'text', label: 'Text', type: 'textarea' },
+          { key: 'linkLabel', label: 'Link label', type: 'text', hint: 'Leave blank to hide the link.' },
+          { key: 'linkHref', label: 'Link target', type: 'text', hint: 'e.g. /products or https://…' },
+        ],
+      },
+    ],
+    defaults: { autoplay: true, items: [] },
+  },
+  intro: {
+    label: 'Company intro',
+    description: 'Image beside a short introduction, with key figures and buttons.',
+    fields: [
+      { key: 'eyebrow', label: 'Label above the heading', type: 'text' },
+      { key: 'title', label: 'Heading', type: 'text' },
+      { key: 'html', label: 'Body', type: 'html' },
+      { key: 'image', label: 'Image', type: 'media', mediaKind: 'image' },
+      {
+        key: 'imageSide', label: 'Image position', type: 'select',
+        options: [
+          { value: 'left', label: 'Left of the text' },
+          { value: 'right', label: 'Right of the text' },
+        ],
+      },
+      {
+        key: 'figures', label: 'Key figures', type: 'list',
+        hint: 'Optional. Shown as a row under the text.',
+        itemFields: [
+          { key: 'value', label: 'Figure', type: 'text', hint: 'e.g. 28+' },
+          { key: 'label', label: 'Caption', type: 'text', hint: 'e.g. years supplying mills' },
+        ],
+      },
+      {
+        key: 'buttons', label: 'Buttons', type: 'list',
+        itemFields: [
+          { key: 'label', label: 'Label', type: 'text' },
+          { key: 'href', label: 'Target', type: 'text', hint: 'e.g. /products' },
+          {
+            key: 'style', label: 'Style', type: 'select',
+            options: [
+              { value: 'accent', label: 'Accent colour' },
+              { value: 'primary', label: 'Primary colour' },
+              { value: 'outline', label: 'Outline' },
+            ],
+          },
+        ],
+      },
+    ],
+    defaults: { eyebrow: '', title: '', html: '', image: '', imageSide: 'left', figures: [], buttons: [] },
+  },
+  cards: {
+    label: 'Application cards',
+    description: 'Image cards for the markets or applications you serve.',
+    fields: [
+      { key: 'title', label: 'Section heading', type: 'text' },
+      { key: 'subtitle', label: 'Section subheading', type: 'textarea' },
+      {
+        key: 'columns', label: 'Columns on desktop', type: 'select',
+        options: [
+          { value: '2', label: '2 per row' },
+          { value: '3', label: '3 per row' },
+          { value: '4', label: '4 per row' },
+        ],
+      },
+      {
+        key: 'items', label: 'Cards', type: 'list',
+        itemFields: [
+          { key: 'image', label: 'Image', type: 'media', mediaKind: 'image' },
+          { key: 'title', label: 'Title', type: 'text' },
+          { key: 'text', label: 'Text', type: 'textarea' },
+          { key: 'href', label: 'Link target', type: 'text', hint: 'e.g. /category/reactive-dyes' },
+        ],
+      },
+    ],
+    defaults: { title: '', subtitle: '', columns: '3', items: [] },
+  },
 }
 
 export const BLOCK_ORDER: BlockType[] = [
-  'hero', 'pagehero', 'richtext', 'director',
-  'category_grid', 'parallax', 'product_grid',
+  'hero', 'pagehero', 'carousel', 'intro', 'richtext', 'director',
+  'category_grid', 'cards', 'parallax', 'product_grid',
   'features', 'stats', 'timeline', 'gallery',
   'cta', 'contact', 'map', 'faq', 'logos', 'testimonials', 'posts',
 ]

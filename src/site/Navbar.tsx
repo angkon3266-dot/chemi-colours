@@ -238,8 +238,24 @@ export default function Navbar({ variant = 'overlay' }: { variant?: 'overlay' | 
           variant === 'solid' ? 'border border-gray-200' : ''
         } rounded-2xl pl-3 sm:pl-4 pr-2 py-2 w-full sm:w-auto sm:inline-flex flex items-center gap-3 sm:gap-6`}
       >
-        <Link to="/" aria-label={settings.site_name || 'Home'} className="shrink-0">
+        <Link
+          to="/"
+          aria-label={settings.site_name || 'Home'}
+          className="shrink-0 flex items-center gap-2.5 min-w-0"
+        >
           <Logo url={settings.logo_url} name={settings.site_name} color={textColor} />
+          {settings.tagline && (
+            /* The slogan is supporting text, not a second logo: it only earns
+               its place from lg up, where the bar has room for it without
+               squeezing the menu. The divider keeps it from reading as part
+               of the logo artwork itself. */
+            <span
+              style={{ color: textColor }}
+              className="hidden lg:block pl-2.5 border-l border-current text-xs leading-snug font-medium opacity-60 max-w-[15rem]"
+            >
+              {settings.tagline}
+            </span>
+          )}
         </Link>
 
         <div className="hidden sm:flex items-center gap-6">

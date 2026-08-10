@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState } from 'react'
 import type { ReactNode } from 'react'
 import { api } from './api'
+import { applyPalette, paletteFromSettings } from './palette'
 import type { Bootstrap, Page, Settings, NavItem } from './types'
 
 /**
@@ -43,6 +44,11 @@ export function SiteProvider({ children }: { children: ReactNode }) {
         // Live settings only — merging the built-ins underneath would quietly
         // reintroduce stock copy for anything the owner had cleared.
         const settings = b.settings || {}
+
+        // Repaint the palette before the first render that uses it. index.css
+        // already carries the brand defaults, so this only ever changes
+        // anything when the owner has picked a different palette.
+        applyPalette(paletteFromSettings(settings))
 
         // A hand-built menu wins; otherwise the menu is derived from pages.
         const custom = Array.isArray(settings.nav_items) ? settings.nav_items : []

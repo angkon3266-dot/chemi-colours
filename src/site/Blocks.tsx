@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
+import type { ReactNode } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-import { MapPin } from 'lucide-react'
+import { ChevronLeft, ChevronRight, MapPin } from 'lucide-react'
 import { api } from '../lib/api'
 import { useSite } from '../lib/site'
 import { resolveCta, mapEmbedUrl, mapLinkUrl } from '../lib/contact'
@@ -15,6 +16,34 @@ import { gridColsClass } from '../lib/grid'
 
 const SECTION = 'py-12 sm:py-16 px-4 sm:px-6'
 const INNER = 'max-w-6xl mx-auto'
+
+/**
+ * Link fields in the block editor accept anything the owner types. An absolute
+ * URL leaves the site and needs a real anchor; everything else is an in-app
+ * route and has to go through the router, or it forces a full page reload.
+ */
+function SmartLink({
+  href,
+  className,
+  children,
+}: {
+  href: string
+  className?: string
+  children: ReactNode
+}) {
+  if (/^(https?:)?\/\//i.test(href) || /^(mailto:|tel:)/i.test(href)) {
+    return (
+      <a href={href} target="_blank" rel="noopener noreferrer" className={className}>
+        {children}
+      </a>
+    )
+  }
+  return (
+    <Link to={href.startsWith('/') ? href : `/${href}`} className={className}>
+      {children}
+    </Link>
+  )
+}
 
 /** Where the hero button sits when it is not tucked under the headline. */
 const CTA_POSITIONS: Record<string, string> = {
@@ -39,6 +68,11 @@ function Hero({ data }: { data: Record<string, any> }) {
 
   const showCta = !!data.ctaEnabled && !!data.ctaLabel
   const ctaPosition = (data.ctaPosition as string) || 'headline'
+  // A free-floating CTA only has room where the hero lays out side by side.
+  // Below lg the headline and the contact form stack full-width, so a centred
+  // overlay sits directly on top of the form the moment it is expanded. At
+  // those widths every placement falls back to flowing under the headline.
+  const floatCta = showCta && ctaPosition !== 'headline'
 
   return (
     // Viewport height is a MINIMUM, not a lock: with the contact form expanded
@@ -64,9 +98,12 @@ function Hero({ data }: { data: Record<string, any> }) {
           pointer-events-none is essential: the centred variant is a full-size
           `inset-0` layer above the content, and without it the wrapper
           swallowed every click in the hero — form toggle, inputs and all. */}
-      {showCta && ctaPosition !== 'headline' && (
+      {floatCta && (
         <div
-          className={`absolute z-20 px-4 sm:px-6 md:px-8 pointer-events-none ${
+          /* max-lg:hidden, not `hidden lg:block`: the position strings below
+             carry their own `flex`, and a competing display utility would win
+             or lose depending on Tailwind's output order rather than intent. */
+          className={`max-lg:hidden absolute z-20 px-4 sm:px-6 md:px-8 pointer-events-none ${
             CTA_POSITIONS[ctaPosition] ?? CTA_POSITIONS.center
           }`}
         >
@@ -95,7 +132,14 @@ function Hero({ data }: { data: Record<string, any> }) {
                 </span>
               )}
             </p>
-            {showCta && ctaPosition === 'headline' && <HeroCta data={data} />}
+            {/* The floating copy above is desktop-only, so this in-flow one
+                covers mobile. Only one is ever visible at a breakpoint, and
+                HeroCta holds no state, so there is nothing to drift. */}
+            {showCta && (
+              <div className={floatCta ? 'lg:hidden' : undefined}>
+                <HeroCta data={data} inFlow />
+              </div>
+            )}
           </div>
 
           {data.showForm !== false && (
@@ -116,7 +160,7 @@ const CTA_STYLES: Record<string, string> = {
 }
 
 /** Configurable button over the hero video: link, WhatsApp, call, email or form. */
-function HeroCta({ data }: { data: Record<string, any> }) {
+function HeroCta({ data, inFlow }: { data: Record<string, any>; inFlow?: boolean }) {
   const { settings } = useSite()
   const { href, external, scroll } = resolveCta(
     settings,
@@ -127,7 +171,7 @@ function HeroCta({ data }: { data: Record<string, any> }) {
 
   const style = CTA_STYLES[data.ctaStyle as string] || CTA_STYLES.white
   // Only the in-flow placement needs the gap under the headline.
-  const spacing = (data.ctaPosition || 'headline') === 'headline' ? 'mt-7' : ''
+  const spacing = inFlow ? 'mt-7' : ''
   // pointer-events-auto re-enables clicks on the button itself, since the
   // free-floating wrapper deliberately lets clicks pass through.
   const cls = `${spacing} pointer-events-auto inline-flex items-center gap-2 text-sm font-semibold px-6 py-3.5 rounded-2xl transition-colors shadow-lg ${style}`
@@ -908,6 +952,277 @@ function PostsBlock({ data }: { data: Record<string, any> }) {
   )
 }
 
+/* -------------------------------------------------------------- carousel -- */
+function Carousel({ data }: { data: Record<string, any> }) {
+  const items: any[] = Array.isArray(data.items) ? data.items : []
+  const [index, setIndex] = useState(0)
+  const [paused, setPaused] = useState(false)
+
+  const count = items.length
+  const go = (next: number) => setIndex(((next % count) + count) % count)
+
+  // Autoplay pauses on hover/focus, and never runs for a reader who has asked
+  // for reduced motion or when there is only one slide to show.
+  useEffect(() => {
+    if (!data.autoplay || paused || count < 2) return
+    if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return
+    const t = window.setInterval(() => setIndex((i) => (i + 1) % count), 6000)
+    return () => window.clearInterval(t)
+  }, [data.autoplay, paused, count])
+
+  // A slide could be removed in the admin while this is mounted; clamp rather
+  // than render an undefined slide.
+  useEffect(() => {
+    if (index > count - 1) setIndex(0)
+  }, [count, index])
+
+  if (count === 0) return null
+  const slide = items[Math.min(index, count - 1)] ?? {}
+
+  return (
+    <section className="px-4 sm:px-6 py-8 sm:py-12">
+      <div className={INNER}>
+        <div
+          className="relative rounded-2xl sm:rounded-3xl overflow-hidden bg-gray-100"
+          onMouseEnter={() => setPaused(true)}
+          onMouseLeave={() => setPaused(false)}
+          onFocusCapture={() => setPaused(true)}
+          onBlurCapture={() => setPaused(false)}
+          aria-roledescription="carousel"
+        >
+          {/* Falls back to a single full-width column when a slide has no
+              picture, rather than reserving half the panel for nothing. */}
+          <div className={`grid items-stretch ${slide.image ? 'md:grid-cols-2' : ''}`}>
+            {slide.image && (
+              <div className="relative aspect-[16/10] md:aspect-auto md:min-h-[22rem] bg-gray-200">
+                <img
+                  src={slide.image}
+                  alt={slide.title || ''}
+                  className="absolute inset-0 w-full h-full object-cover"
+                />
+              </div>
+            )}
+
+            <div className="p-6 sm:p-10 flex flex-col justify-center gap-3">
+              {slide.eyebrow && (
+                <p className="text-xs font-semibold uppercase tracking-[0.14em] text-accent">
+                  {slide.eyebrow}
+                </p>
+              )}
+              {slide.title && (
+                <h2 className="text-2xl sm:text-3xl font-medium text-black leading-tight">
+                  {slide.title}
+                </h2>
+              )}
+              {slide.text && (
+                <p className="text-sm sm:text-base text-gray-500 leading-relaxed">{slide.text}</p>
+              )}
+              {slide.linkLabel && slide.linkHref && (
+                <div className="pt-2">
+                  <SmartLink
+                    href={slide.linkHref}
+                    className="inline-flex items-center gap-2 bg-accent text-accent-fg text-sm font-semibold px-5 py-3 rounded-full hover:opacity-90 transition-opacity"
+                  >
+                    {slide.linkLabel}
+                  </SmartLink>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {count > 1 && (
+            <div className="absolute bottom-3 right-3 sm:bottom-5 sm:right-5 flex items-center gap-1.5">
+              <button
+                type="button"
+                onClick={() => go(index - 1)}
+                aria-label="Previous slide"
+                className="w-9 h-9 rounded-full bg-white/90 text-black flex items-center justify-center hover:bg-white transition-colors shadow"
+              >
+                <ChevronLeft size={17} />
+              </button>
+              <button
+                type="button"
+                onClick={() => go(index + 1)}
+                aria-label="Next slide"
+                className="w-9 h-9 rounded-full bg-white/90 text-black flex items-center justify-center hover:bg-white transition-colors shadow"
+              >
+                <ChevronRight size={17} />
+              </button>
+            </div>
+          )}
+        </div>
+
+        {count > 1 && (
+          <div className="flex justify-center gap-2 mt-4">
+            {items.map((_, i) => (
+              <button
+                key={i}
+                type="button"
+                onClick={() => setIndex(i)}
+                aria-label={`Go to slide ${i + 1}`}
+                aria-current={i === index}
+                className={`h-1.5 rounded-full transition-all ${
+                  i === index ? 'w-6 bg-black' : 'w-1.5 bg-gray-300 hover:bg-gray-400'
+                }`}
+              />
+            ))}
+          </div>
+        )}
+      </div>
+    </section>
+  )
+}
+
+/* ----------------------------------------------------------------- intro -- */
+const INTRO_BUTTON: Record<string, string> = {
+  accent: 'bg-accent text-accent-fg hover:opacity-90',
+  primary: 'bg-black text-white hover:opacity-90',
+  outline: 'bg-transparent text-black border border-gray-300 hover:border-black',
+}
+
+function Intro({ data }: { data: Record<string, any> }) {
+  const figures: any[] = Array.isArray(data.figures) ? data.figures : []
+  const buttons: any[] = Array.isArray(data.buttons) ? data.buttons : []
+  const imageRight = data.imageSide === 'right'
+
+  return (
+    <section className={SECTION}>
+      <div className={INNER}>
+        <div
+          className={`flex flex-col gap-8 lg:gap-14 lg:items-center ${
+            imageRight ? 'lg:flex-row-reverse' : 'lg:flex-row'
+          }`}
+        >
+          {data.image && (
+            <div className="lg:w-1/2 shrink-0">
+              <img
+                src={data.image}
+                alt={data.title || ''}
+                loading="lazy"
+                className="w-full aspect-[4/3] object-cover rounded-2xl sm:rounded-3xl"
+              />
+            </div>
+          )}
+
+          <div className="lg:flex-1 min-w-0">
+            {data.eyebrow && (
+              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-accent mb-3">
+                {data.eyebrow}
+              </p>
+            )}
+            {data.title && (
+              <h2 className="text-2xl sm:text-3xl lg:text-4xl font-medium text-black leading-tight">
+                {data.title}
+              </h2>
+            )}
+            {data.html && (
+              <div
+                className="prose-chemi mt-4 text-gray-600 leading-relaxed"
+                dangerouslySetInnerHTML={{ __html: data.html }}
+              />
+            )}
+
+            {figures.length > 0 && (
+              <div className="mt-7 flex flex-wrap gap-x-10 gap-y-5">
+                {figures.map((f, i) => (
+                  <div key={i}>
+                    <div className="text-2xl sm:text-3xl font-medium text-black tabular-nums">
+                      {f.value}
+                    </div>
+                    <div className="text-sm text-gray-500 mt-0.5">{f.label}</div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {buttons.length > 0 && (
+              <div className="mt-7 flex flex-wrap gap-2.5">
+                {buttons.map((b, i) =>
+                  b.label && b.href ? (
+                    <SmartLink
+                      key={i}
+                      href={b.href}
+                      className={`inline-flex items-center text-sm font-semibold px-5 py-3 rounded-full transition-opacity ${
+                        INTRO_BUTTON[b.style as string] || INTRO_BUTTON.accent
+                      }`}
+                    >
+                      {b.label}
+                    </SmartLink>
+                  ) : null
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </section>
+  )
+}
+
+/* ----------------------------------------------------------------- cards -- */
+function Cards({ data }: { data: Record<string, any> }) {
+  const items: any[] = Array.isArray(data.items) ? data.items : []
+  const cols = gridColsClass(data.columns, '3')
+  if (items.length === 0) return null
+
+  return (
+    <section className={SECTION}>
+      <div className={INNER}>
+        {(data.title || data.subtitle) && (
+          <div className="mb-8 max-w-2xl">
+            {data.title && (
+              <h2 className="text-2xl sm:text-3xl font-medium text-black">{data.title}</h2>
+            )}
+            {data.subtitle && (
+              <p className="mt-2 text-gray-500 leading-relaxed">{data.subtitle}</p>
+            )}
+          </div>
+        )}
+
+        <div className={`grid ${cols} gap-4 sm:gap-5`}>
+          {items.map((item, i) => {
+            const inner = (
+              <>
+                {/* No empty grey box when there's no picture yet — a text-only
+                    card is a fine card, an empty frame is just a hole. */}
+                {item.image && (
+                  <div className="aspect-[4/3] bg-gray-100 overflow-hidden">
+                    <img
+                      src={item.image}
+                      alt={item.title || ''}
+                      loading="lazy"
+                      className="w-full h-full object-cover group-hover:scale-[1.03] transition-transform duration-500"
+                    />
+                  </div>
+                )}
+                <div className="p-4 sm:p-5">
+                  <h3 className="text-base font-semibold text-black">{item.title}</h3>
+                  {item.text && (
+                    <p className="mt-1.5 text-sm text-gray-500 leading-relaxed line-clamp-3">
+                      {item.text}
+                    </p>
+                  )}
+                </div>
+              </>
+            )
+            const cls =
+              'group block rounded-2xl border border-gray-200 overflow-hidden hover:border-gray-400 transition-colors'
+            return item.href ? (
+              <SmartLink key={i} href={item.href} className={cls}>
+                {inner}
+              </SmartLink>
+            ) : (
+              <div key={i} className={cls}>
+                {inner}
+              </div>
+            )
+          })}
+        </div>
+      </div>
+    </section>
+  )
+}
+
 /* -------------------------------------------------------------- renderer -- */
 export function BlockRenderer({ block }: { block: Block }) {
   const d = block.data || {}
@@ -948,6 +1263,12 @@ export function BlockRenderer({ block }: { block: Block }) {
       return <Testimonials data={d} />
     case 'posts':
       return <PostsBlock data={d} />
+    case 'carousel':
+      return <Carousel data={d} />
+    case 'intro':
+      return <Intro data={d} />
+    case 'cards':
+      return <Cards data={d} />
     default:
       return null
   }

@@ -17,6 +17,9 @@ const SETTING_KEYS = [
     'social_twitter', 'social_facebook', 'social_instagram', 'social_linkedin',
     'form_services', 'form_heading', 'form_intro',
     'form_success_title', 'form_success_text',
+    // Appearance. The preset names a built-in palette; the four colour keys
+    // override individual slots and are blank unless the owner set them.
+    'palette_preset', 'palette_primary', 'palette_accent', 'palette_page', 'palette_body',
 ];
 
 const JSON_SETTING_KEYS = ['form_services', 'footer_columns', 'footer_extra', 'nav_items'];
@@ -25,6 +28,7 @@ const BLOCK_TYPES = [
     'hero', 'pagehero', 'richtext', 'features', 'stats', 'timeline',
     'product_grid', 'gallery', 'cta', 'contact', 'faq', 'logos',
     'category_grid', 'parallax', 'director', 'map', 'testimonials', 'posts',
+    'carousel', 'intro', 'cards',
 ];
 
 function handle_admin(string $method, array $seg): void

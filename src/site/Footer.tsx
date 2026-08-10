@@ -40,8 +40,11 @@ export default function Footer() {
 
   return (
     <footer className="mt-6 rounded-2xl sm:rounded-3xl bg-gray-50 border border-gray-100 px-5 sm:px-8 py-8 sm:py-10">
-      <div className="flex flex-col lg:flex-row gap-8 lg:gap-12">
-        <div className="lg:max-w-sm flex flex-col gap-3">
+      {/* Twelve columns rather than a two-part flex row: the owner can define
+          any number of link columns, and a grid lets them line up against the
+          brand block instead of being squeezed by whatever it happens to be. */}
+      <div className="grid gap-8 lg:gap-12 lg:grid-cols-12">
+        <div className="lg:col-span-4 flex flex-col gap-3">
           <div className="flex items-center gap-2">
             {settings.logo_url ? (
               <img
@@ -51,9 +54,11 @@ export default function Footer() {
               />
             ) : (
               <>
-                <svg viewBox="0 0 256 256" className="w-7 h-7" aria-hidden="true">
-                  <path d="M 256 256 L 128 256 L 0 128 L 128 128 Z" fill="black" />
-                  <path d="M 256 128 L 128 128 L 0 0 L 128 0 Z" fill="black" />
+                {/* currentColor, not a literal black: the fallback mark has to
+                    follow the palette like everything else. */}
+                <svg viewBox="0 0 256 256" className="w-7 h-7 text-black" aria-hidden="true">
+                  <path d="M 256 256 L 128 256 L 0 128 L 128 128 Z" fill="currentColor" />
+                  <path d="M 256 128 L 128 128 L 0 0 L 128 0 Z" fill="currentColor" />
                 </svg>
                 <span className="font-semibold text-black">
                   {settings.site_name}
@@ -110,7 +115,7 @@ export default function Footer() {
           )}
         </div>
 
-        <div className="flex-1 grid grid-cols-2 sm:grid-cols-3 gap-6">
+        <div className="lg:col-span-8 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-6 lg:gap-8">
           {columns.map((col, i) => (
             <div key={i} className="flex flex-col gap-2.5">
               <h3 className="text-sm font-semibold text-black">{col.title}</h3>

@@ -17,6 +17,9 @@ export type BlockType =
   | 'map'
   | 'testimonials'
   | 'posts'
+  | 'carousel'
+  | 'intro'
+  | 'cards'
 
 export interface Block {
   id?: number

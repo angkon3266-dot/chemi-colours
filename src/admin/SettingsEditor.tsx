@@ -5,6 +5,7 @@ import { mapEmbedUrl } from '../lib/contact'
 import AccountCard from './AccountCard'
 import UsersCard from './UsersCard'
 import MenuEditor from './MenuEditor'
+import PaletteEditor from './PaletteEditor'
 import type { FooterColumn, MediaItem, NavItem, Settings } from '../lib/types'
 
 import {
@@ -150,7 +151,10 @@ export default function SettingsEditor() {
               <Field label="Site name" hint="Used when no logo image is set.">
                 <Input value={s.site_name || ''} onChange={(e) => set('site_name', e.target.value)} />
               </Field>
-              <Field label="Tagline" hint="Short line shown under the logo in the footer.">
+              <Field
+                label="Tagline / slogan"
+                hint="Shown beside the logo in the header, and under it in the footer."
+              >
                 <Input
                   value={s.tagline || ''}
                   onChange={(e) => set('tagline', e.target.value)}
@@ -161,6 +165,8 @@ export default function SettingsEditor() {
           </div>
         </div>
       </Card>
+
+      <PaletteEditor s={s} set={set} />
 
       <Card className="mt-4">
         <h2 className="text-base font-semibold text-black mb-4">Contact & enquiry routes</h2>

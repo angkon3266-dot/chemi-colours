@@ -4,6 +4,31 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Palette defaults — the "Chemi Colours" preset, sampled from the logo.
+   tailwind.config.js maps `black`, `gray` and friends onto these, and
+   src/lib/palette.ts rewrites them at startup from the owner's settings.
+   Keeping a full set here means the first paint is already on-brand rather
+   than flashing stock Tailwind grey while settings load.
+   Stored as RGB channels so Tailwind's `/opacity` modifiers still work. */
+:root {
+  --c-primary: 35 70 115;
+  --c-primary-fg: 255 255 255;
+  --c-accent: 230 125 55;
+  --c-accent-fg: 255 255 255;
+  --c-page: 255 255 255;
+  --c-gray-50: 249 250 251;
+  --c-gray-100: 244 245 246;
+  --c-gray-200: 226 229 233;
+  --c-gray-300: 204 208 215;
+  --c-gray-400: 154 162 172;
+  --c-gray-500: 103 117 137;
+  --c-gray-600: 81 92 108;
+  --c-gray-700: 64 72 84;
+  --c-gray-800: 46 52 61;
+  --c-gray-900: 31 35 41;
+  --c-gray-950: 20 22 26;
+}
+
 * {
   font-family: 'Inter', sans-serif;
 }
