@@ -27,7 +27,7 @@ export const BLOCK_SCHEMAS: Record<BlockType, BlockSchema> = {
     fields: [
       { key: 'headline', label: 'Headline — first line', type: 'text' },
       { key: 'headline2', label: 'Headline — second line', type: 'text' },
-      { key: 'accent', label: 'Accent word', type: 'text', hint: 'Shown in italic serif at the end of line two.' },
+      { key: 'accent', label: 'Extra word', type: 'text', hint: 'Shown at the end of line two, same style as the rest of the headline.' },
       { key: 'useSiteVideo', label: 'Use the site-wide background video', type: 'bool', hint: 'Set that video under Settings.' },
       { key: 'videoUrl', label: 'Custom video URL', type: 'media', mediaKind: 'video', hint: 'Used only when the option above is off. Leave empty and the site-wide video is used anyway.' },
       { key: 'showForm', label: 'Show the contact form', type: 'bool' },

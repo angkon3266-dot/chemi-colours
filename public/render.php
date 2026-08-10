@@ -30,8 +30,6 @@ try {
     $path = '/' . trim($path, '/');
     $seg = array_values(array_filter(explode('/', trim($path, '/')), static fn($s) => $s !== ''));
 
-    record_pageview($path);
-
     $settings = [];
     foreach (db()->query('SELECT `key`, `value` FROM settings')->fetchAll() as $r) {
         $settings[$r['key']] = (string) $r['value'];
@@ -91,6 +89,13 @@ try {
             $description = $row['meta_description'] ?: $description;
         }
     }
+
+    // $row was set (truthy) or reset to false (falsy) by whichever branch
+    // above ran — the same lookup the client-side router relies on via
+    // /:slug, so this is the actual "does this page exist" answer rather
+    // than a guess. A scanner path that never matched a real product, post,
+    // category or page never sets $row at all.
+    record_pageview($path, (bool) $row);
 
     if ($siteName !== '' && stripos($title, $siteName) === false) {
         $title .= ' — ' . $siteName;

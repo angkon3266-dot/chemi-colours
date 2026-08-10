@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
-import { X, Upload, Link2, Trash2, Check, FileText } from 'lucide-react'
+import { X, Upload, Link2, Trash2, Check, FileText, ChevronDown } from 'lucide-react'
 import { api } from '../lib/api'
 import type { MediaItem } from '../lib/types'
 
@@ -64,6 +64,48 @@ export function Card({ children, className = '' }: { children: ReactNode; classN
   return (
     <div className={`bg-white rounded-2xl border border-gray-200 p-5 sm:p-6 ${className}`}>
       {children}
+    </div>
+  )
+}
+
+/**
+ * A Card whose body can be collapsed — for dashboard-style pages where
+ * several data-heavy blocks stacked open at once feel bigger than any one of
+ * them needs to be. The border is bolder than the plain Card's so a page of
+ * several of these still reads as separate boxes, not one long white sheet.
+ */
+export function CollapsibleCard({
+  title,
+  subtitle,
+  defaultOpen = true,
+  className = '',
+  children,
+}: {
+  title: string
+  subtitle?: string
+  defaultOpen?: boolean
+  className?: string
+  children: ReactNode
+}) {
+  const [open, setOpen] = useState(defaultOpen)
+  return (
+    <div className={`bg-white rounded-2xl border-2 border-gray-200 overflow-hidden ${className}`}>
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        aria-expanded={open}
+        className="w-full flex items-start justify-between gap-3 text-left p-5 sm:p-6 hover:bg-gray-50 transition-colors"
+      >
+        <span>
+          <span className="block text-base font-semibold text-black">{title}</span>
+          {subtitle && <span className="block text-xs text-gray-400 mt-0.5">{subtitle}</span>}
+        </span>
+        <ChevronDown
+          size={18}
+          className={`shrink-0 mt-0.5 text-gray-400 transition-transform duration-200 ${open ? 'rotate-180' : ''}`}
+        />
+      </button>
+      {open && <div className="px-5 sm:px-6 pb-5 sm:pb-6">{children}</div>}
     </div>
   )
 }

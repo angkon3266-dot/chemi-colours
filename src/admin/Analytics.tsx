@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Users, Eye, Globe, Smartphone } from 'lucide-react'
 import { api } from '../lib/api'
-import { Card } from './ui'
+import { CollapsibleCard } from './ui'
 
 interface Summary {
   days: number
@@ -14,7 +14,13 @@ interface Summary {
   devices: { device: string; views: number }[]
 }
 
-const RANGES = [
+/** 'today' is a distinct API mode (calendar day, broken down by hour) rather
+    than just days=1 — a rolling 24 hours isn't what "today" means to someone
+    checking in partway through the day. */
+type Range = 'today' | 7 | 30 | 90 | 365
+
+const RANGES: { v: Range; l: string }[] = [
+  { v: 'today', l: 'Today' },
   { v: 7, l: '7 days' },
   { v: 30, l: '30 days' },
   { v: 90, l: '90 days' },
@@ -78,17 +84,23 @@ function Bars({
 }
 
 export default function Analytics() {
-  const [days, setDays] = useState(30)
+  const [range, setRange] = useState<Range>(30)
   const [data, setData] = useState<Summary | null>(null)
   const [error, setError] = useState('')
 
   useEffect(() => {
+    let cancelled = false
     setData(null)
+    setError('')
+    const qs = range === 'today' ? 'range=today' : `days=${range}`
     api
-      .get<Summary>(`/admin/analytics?days=${days}`)
-      .then(setData)
-      .catch((e) => setError(e.message))
-  }, [days])
+      .get<Summary>(`/admin/analytics?${qs}`)
+      .then((s) => !cancelled && setData(s))
+      .catch((e) => !cancelled && setError(e.message))
+    return () => {
+      cancelled = true
+    }
+  }, [range])
 
   const tiles = [
     { label: 'Visitors', value: data?.visitors, Icon: Users, hint: 'Unique people' },
@@ -121,9 +133,9 @@ export default function Analytics() {
             <button
               key={v}
               type="button"
-              onClick={() => setDays(v)}
+              onClick={() => setRange(v)}
               className={`text-xs font-medium px-3 py-2 rounded-lg border transition-all ${
-                days === v
+                range === v
                   ? 'bg-gray-100 text-black border-black'
                   : 'bg-white text-gray-700 border-gray-200 hover:border-gray-400'
               }`}
@@ -149,15 +161,15 @@ export default function Analytics() {
         ))}
       </div>
 
-      <Card className="mt-4">
-        <h2 className="text-base font-semibold text-black mb-4">Visits per day</h2>
+      <CollapsibleCard
+        title={range === 'today' ? 'Visits by hour' : 'Visits per day'}
+        className="mt-4"
+      >
         {data ? <DailyChart data={data.byDay} /> : <p className="text-sm text-gray-500">Loading…</p>}
-      </Card>
+      </CollapsibleCard>
 
       <div className="mt-4 grid lg:grid-cols-2 gap-4">
-        <Card>
-          <h2 className="text-base font-semibold text-black mb-1">Most viewed pages</h2>
-          <p className="text-xs text-gray-400 mb-4">Which pages people actually open.</p>
+        <CollapsibleCard title="Most viewed pages" subtitle="Which pages people actually open.">
           {data ? (
             <Bars
               rows={data.topPages.map((p) => ({ key: p.path, label: p.path, value: p.views }))}
@@ -168,13 +180,12 @@ export default function Analytics() {
           ) : (
             <p className="text-sm text-gray-500">Loading…</p>
           )}
-        </Card>
+        </CollapsibleCard>
 
-        <Card>
-          <h2 className="text-base font-semibold text-black mb-1">Where they come from</h2>
-          <p className="text-xs text-gray-400 mb-4">
-            The site that linked to you. Direct visits are counted above.
-          </p>
+        <CollapsibleCard
+          title="Where they come from"
+          subtitle="The site that linked to you. Direct visits are counted above."
+        >
           {data ? (
             <Bars
               rows={data.referrers.map((r) => ({ key: r.host, label: r.host, value: r.views }))}
@@ -184,7 +195,7 @@ export default function Analytics() {
           ) : (
             <p className="text-sm text-gray-500">Loading…</p>
           )}
-        </Card>
+        </CollapsibleCard>
       </div>
     </div>
   )

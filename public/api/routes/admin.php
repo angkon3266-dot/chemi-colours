@@ -845,7 +845,8 @@ function admin_analytics(string $method): void
         throw new ApiError('Unknown analytics endpoint.', 404);
     }
     require_once __DIR__ . '/../lib/analytics.php';
-    json_out(analytics_summary((int) ($_GET['days'] ?? 30)));
+    $range = (string) ($_GET['range'] ?? '');
+    json_out($range === 'today' ? analytics_summary_today() : analytics_summary((int) ($_GET['days'] ?? 30)));
 }
 
 // ------------------------------------------------------- image optimisation --

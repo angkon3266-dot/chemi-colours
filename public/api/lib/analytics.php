@@ -42,12 +42,19 @@ function device_of(string $ua): string
     return 'desktop';
 }
 
-/** Never let analytics break a page render. */
-function record_pageview(string $path): void
+/**
+ * $resolved comes from render.php, which already looked this exact path up
+ * against products, posts, categories and pages to build the meta tags —
+ * the same source of truth the client-side router uses. A vulnerability
+ * scanner or malware probe (/wp-includes/wlwmanifest.xml, /.env, /backup…)
+ * never resolves to anything real, so it never reaches here, without having
+ * to guess from the path's shape or maintain a list of known junk requests.
+ */
+function record_pageview(string $path, bool $resolved): void
 {
     try {
         $ua = (string) ($_SERVER['HTTP_USER_AGENT'] ?? '');
-        if (looks_like_bot($ua) || str_starts_with($path, '/admin')) {
+        if (!$resolved || looks_like_bot($ua) || str_starts_with($path, '/admin')) {
             return;
         }
 
@@ -88,49 +95,79 @@ function record_pageview(string $path): void
 function analytics_summary(int $days): array
 {
     $days = max(1, min(365, $days));
-
-    $totals = db()->prepare(
-        'SELECT COUNT(*) AS views, COUNT(DISTINCT visitor_hash) AS visitors
-         FROM pageviews WHERE created_at >= (NOW() - INTERVAL ? DAY)'
+    return build_analytics_summary(
+        'created_at >= (NOW() - INTERVAL ? DAY)',
+        [$days],
+        'DATE(created_at)',
+        $days
     );
-    $totals->execute([$days]);
+}
+
+/**
+ * Same shape as analytics_summary(), scoped to the current calendar day (not
+ * a rolling 24 hours) and broken down by hour rather than by day — a single
+ * day has nothing to chart one bar per day.
+ */
+function analytics_summary_today(): array
+{
+    return build_analytics_summary(
+        'DATE(created_at) = CURDATE()',
+        [],
+        "DATE_FORMAT(created_at, '%H:00')",
+        0
+    );
+}
+
+/**
+ * $where/$whereParams select the time window; $bucketExpr is what "day" in
+ * the response actually groups by (a calendar date for a day range, an hour
+ * label for "today"). Every query below shares both, so the two ranges stay
+ * a single code path instead of two summaries drifting apart over time.
+ */
+function build_analytics_summary(string $where, array $whereParams, string $bucketExpr, int $days): array
+{
+    $totals = db()->prepare(
+        "SELECT COUNT(*) AS views, COUNT(DISTINCT visitor_hash) AS visitors
+         FROM pageviews WHERE $where"
+    );
+    $totals->execute($whereParams);
     $t = $totals->fetch() ?: ['views' => 0, 'visitors' => 0];
 
     $byDay = db()->prepare(
-        'SELECT DATE(created_at) AS day, COUNT(*) AS views,
+        "SELECT $bucketExpr AS day, COUNT(*) AS views,
                 COUNT(DISTINCT visitor_hash) AS visitors
-         FROM pageviews WHERE created_at >= (NOW() - INTERVAL ? DAY)
-         GROUP BY DATE(created_at) ORDER BY day ASC'
+         FROM pageviews WHERE $where
+         GROUP BY $bucketExpr ORDER BY day ASC"
     );
-    $byDay->execute([$days]);
+    $byDay->execute($whereParams);
 
     $topPages = db()->prepare(
-        'SELECT path, COUNT(*) AS views, COUNT(DISTINCT visitor_hash) AS visitors
-         FROM pageviews WHERE created_at >= (NOW() - INTERVAL ? DAY)
-         GROUP BY path ORDER BY views DESC LIMIT 20'
+        "SELECT path, COUNT(*) AS views, COUNT(DISTINCT visitor_hash) AS visitors
+         FROM pageviews WHERE $where
+         GROUP BY path ORDER BY views DESC LIMIT 20"
     );
-    $topPages->execute([$days]);
+    $topPages->execute($whereParams);
 
     $referrers = db()->prepare(
         "SELECT referrer_host, COUNT(*) AS views
          FROM pageviews
-         WHERE created_at >= (NOW() - INTERVAL ? DAY) AND referrer_host <> ''
+         WHERE $where AND referrer_host <> ''
          GROUP BY referrer_host ORDER BY views DESC LIMIT 20"
     );
-    $referrers->execute([$days]);
+    $referrers->execute($whereParams);
 
     $devices = db()->prepare(
-        'SELECT device, COUNT(*) AS views
-         FROM pageviews WHERE created_at >= (NOW() - INTERVAL ? DAY)
-         GROUP BY device ORDER BY views DESC'
+        "SELECT device, COUNT(*) AS views
+         FROM pageviews WHERE $where
+         GROUP BY device ORDER BY views DESC"
     );
-    $devices->execute([$days]);
+    $devices->execute($whereParams);
 
     $direct = db()->prepare(
         "SELECT COUNT(*) FROM pageviews
-         WHERE created_at >= (NOW() - INTERVAL ? DAY) AND referrer_host = ''"
+         WHERE $where AND referrer_host = ''"
     );
-    $direct->execute([$days]);
+    $direct->execute($whereParams);
 
     return [
         'days'      => $days,

@@ -125,18 +125,8 @@ function Hero({ data }: { data: Record<string, any> }) {
             <p className="text-white text-3xl sm:text-4xl xl:text-5xl font-medium leading-tight drop-shadow-lg">
               {data.headline}
               <br />
-              {data.headline2}{' '}
-              {data.accent && (
-                <span
-                  style={{
-                    fontFamily: "'Instrument Serif', serif",
-                    fontStyle: 'italic',
-                    fontWeight: 400,
-                  }}
-                >
-                  {data.accent}
-                </span>
-              )}
+              {data.headline2}
+              {data.accent && ` ${data.accent}`}
             </p>
             {/* The floating copy above is desktop-only, so this in-flow one
                 covers mobile. Only one is ever visible at a breakpoint, and
