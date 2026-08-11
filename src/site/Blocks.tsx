@@ -63,6 +63,35 @@ const CTA_POSITIONS: Record<string, string> = {
   'bottom-center': 'bottom-8 sm:bottom-10 left-1/2 -translate-x-1/2',
 }
 
+/**
+ * One hero headline row. Splits on the first space so "Colouring Tomorrow."
+ * renders as "Colouring" in the line's own colour and "Tomorrow." in the
+ * theme accent — matching the brand's own two-tone headline style without a
+ * second admin field, since the accent colour already comes from Settings
+ * and stays consistent with every other accent-coloured element on the site.
+ */
+function HeroLine({
+  text,
+  color,
+  delay,
+}: {
+  text?: string
+  color?: string
+  delay: number
+}) {
+  if (!text) return null
+  const splitAt = text.indexOf(' ')
+  const lead = splitAt === -1 ? text : text.slice(0, splitAt)
+  const rest = splitAt === -1 ? '' : text.slice(splitAt) // keeps its leading space
+
+  return (
+    <div className="hero-line-in whitespace-nowrap" style={{ animationDelay: `${delay}ms` }}>
+      <span style={{ color: color || '#ffffff' }}>{lead}</span>
+      {rest && <span className="text-accent">{rest}</span>}
+    </div>
+  )
+}
+
 /* ------------------------------------------------------------------ hero -- */
 function Hero({ data }: { data: Record<string, any> }) {
   const { settings, loading } = useSite()
@@ -126,27 +155,20 @@ function Hero({ data }: { data: Record<string, any> }) {
 
         <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-6">
           <div className="lg:max-w-lg xl:max-w-2xl shrink-0">
-            {/* Three separate lines, forced with <br/> rather than left to
-                wrap — headline/headline2/accent read as three short
-                statements and must stay that shape on every screen size,
-                not reflow into a paragraph on a narrow viewport. Each line
-                can carry its own colour so a word/phrase can be picked out
-                without touching the other two. */}
-            <p className="text-3xl sm:text-4xl xl:text-5xl font-medium leading-tight drop-shadow-lg">
-              <span style={{ color: data.headlineColor || '#ffffff' }}>{data.headline}</span>
-              {data.headline2 && (
-                <>
-                  <br />
-                  <span style={{ color: data.headline2Color || '#ffffff' }}>{data.headline2}</span>
-                </>
-              )}
-              {data.accent && (
-                <>
-                  <br />
-                  <span style={{ color: data.accentColor || '#ffffff' }}>{data.accent}</span>
-                </>
-              )}
-            </p>
+            {/* Three separate block-level lines rather than wrapped text —
+                headline/headline2/accent are three short statements and must
+                render as exactly that shape on every device, never reflow
+                into a paragraph. font-size is fluid (clamp, not breakpoint
+                steps) and each line is nowrap, so the longest line always
+                fits on one row instead of wrapping on a narrow phone. */}
+            <div
+              className="font-medium leading-tight drop-shadow-lg"
+              style={{ fontSize: 'clamp(1.5rem, 0.9rem + 4vw, 3.25rem)' }}
+            >
+              <HeroLine text={data.headline} color={data.headlineColor} delay={0} />
+              <HeroLine text={data.headline2} color={data.headline2Color} delay={140} />
+              <HeroLine text={data.accent} color={data.accentColor} delay={280} />
+            </div>
             {/* The floating copy above is desktop-only, so this in-flow one
                 covers mobile. Only one is ever visible at a breakpoint, and
                 HeroCta holds no state, so there is nothing to drift. */}

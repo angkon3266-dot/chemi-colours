@@ -1023,12 +1023,12 @@ function rebuild_home_archroma_once(): void
         'subtitle' => 'Dyes and auxiliaries selected for the substrate and the process they are run on.',
         'columns'  => '3',
         'items'    => [
-            ['title' => 'Denim', 'text' => 'Indigo and sulphur dyeing, plus the wash-down and finishing chemistry that follows.', 'image' => '', 'href' => ''],
-            ['title' => 'Knitwear', 'text' => 'Exhaust dyeing of cotton and blended knits, where levelness across the batch decides the result.', 'image' => '', 'href' => ''],
-            ['title' => 'Woven fabrics', 'text' => 'Continuous and pad-batch routes for shirting, bottomweight and uniform cloth.', 'image' => '', 'href' => ''],
-            ['title' => 'Home textiles', 'text' => 'Bed linen, curtains and upholstery, where light and rubbing fastness matter most.', 'image' => '', 'href' => ''],
-            ['title' => 'Terry & towelling', 'text' => 'High-liquor-ratio dyeing on absorbent constructions, with softening at the finishing stage.', 'image' => '', 'href' => ''],
-            ['title' => 'Performance wear', 'text' => 'Disperse dyeing of polyester and synthetic blends, including moisture-management finishes.', 'image' => '', 'href' => ''],
+            ['title' => 'Denim Jeans', 'text' => 'Indigo and sulphur dyeing, plus the wash processes.', 'image' => '', 'href' => '', 'icon' => 'shirt'],
+            ['title' => 'Knit Fabrics', 'text' => 'Exhaust dyeing of cotton and blended knits.', 'image' => '', 'href' => '', 'icon' => 'layers'],
+            ['title' => 'Woven Fabrics', 'text' => 'Continuous and pad-batch routes for wovens.', 'image' => '', 'href' => '', 'icon' => 'weave'],
+            ['title' => 'Home Textiles', 'text' => 'Bed linen, curtains and upholstery.', 'image' => '', 'href' => '', 'icon' => 'sofa'],
+            ['title' => 'Terry Fabrics', 'text' => 'High-liquor-ratio dyeing on absorbent fabrics.', 'image' => '', 'href' => '', 'icon' => 'waves'],
+            ['title' => 'Performance Wear', 'text' => 'Disperse dyeing of polyester and its blends.', 'image' => '', 'href' => '', 'icon' => 'zap'],
         ],
     ]);
 }
