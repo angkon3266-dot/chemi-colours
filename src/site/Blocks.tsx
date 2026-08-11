@@ -7,7 +7,11 @@ import {
   useMotionValue,
   useReducedMotion,
 } from 'framer-motion'
-import { ChevronLeft, ChevronRight, MapPin } from 'lucide-react'
+import {
+  ChevronLeft, ChevronRight, MapPin,
+  Shirt, Layers, LayoutGrid, Sofa, Waves, Zap,
+  Droplet, Droplets, Package, Sparkles, Palette, Home, Scissors, Umbrella,
+} from 'lucide-react'
 import { api } from '../lib/api'
 import { useSite } from '../lib/site'
 import { resolveCta, mapEmbedUrl, mapLinkUrl } from '../lib/contact'
@@ -122,10 +126,26 @@ function Hero({ data }: { data: Record<string, any> }) {
 
         <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-6">
           <div className="lg:max-w-lg xl:max-w-2xl shrink-0">
-            <p className="text-white text-3xl sm:text-4xl xl:text-5xl font-medium leading-tight drop-shadow-lg">
-              {data.headline}
-              <br />
-              {[data.headline2, data.accent].filter(Boolean).join(' ')}
+            {/* Three separate lines, forced with <br/> rather than left to
+                wrap — headline/headline2/accent read as three short
+                statements and must stay that shape on every screen size,
+                not reflow into a paragraph on a narrow viewport. Each line
+                can carry its own colour so a word/phrase can be picked out
+                without touching the other two. */}
+            <p className="text-3xl sm:text-4xl xl:text-5xl font-medium leading-tight drop-shadow-lg">
+              <span style={{ color: data.headlineColor || '#ffffff' }}>{data.headline}</span>
+              {data.headline2 && (
+                <>
+                  <br />
+                  <span style={{ color: data.headline2Color || '#ffffff' }}>{data.headline2}</span>
+                </>
+              )}
+              {data.accent && (
+                <>
+                  <br />
+                  <span style={{ color: data.accentColor || '#ffffff' }}>{data.accent}</span>
+                </>
+              )}
             </p>
             {/* The floating copy above is desktop-only, so this in-flow one
                 covers mobile. Only one is ever visible at a breakpoint, and
@@ -1225,6 +1245,27 @@ function Intro({ data }: { data: Record<string, any> }) {
 }
 
 /* ----------------------------------------------------------------- cards -- */
+/** Kept intentionally small — a handful of shapes that read cleanly at 20px
+    inside a badge, covering the textile/apparel vocabulary this site's cards
+    actually use, rather than exposing the whole lucide set as raw text keys
+    admins would have to spell correctly. */
+const CARD_ICONS: Record<string, typeof Shirt> = {
+  shirt: Shirt,
+  layers: Layers,
+  weave: LayoutGrid,
+  sofa: Sofa,
+  waves: Waves,
+  zap: Zap,
+  droplet: Droplet,
+  droplets: Droplets,
+  package: Package,
+  sparkles: Sparkles,
+  palette: Palette,
+  home: Home,
+  scissors: Scissors,
+  umbrella: Umbrella,
+}
+
 function Cards({ data }: { data: Record<string, any> }) {
   const items: any[] = Array.isArray(data.items) ? data.items : []
   const cols = gridColsClass(data.columns, '3')
@@ -1246,32 +1287,54 @@ function Cards({ data }: { data: Record<string, any> }) {
 
         <div className={`grid ${cols} gap-4 sm:gap-5`}>
           {items.map((item, i) => {
+            const Icon = CARD_ICONS[item.icon as string]
             const inner = (
               <>
-                {/* No empty grey box when there's no picture yet — a text-only
-                    card is a fine card, an empty frame is just a hole. */}
-                {item.image && (
-                  <div className="aspect-[4/3] bg-gray-100 overflow-hidden">
-                    <img
-                      src={item.image}
-                      alt={item.title || ''}
-                      loading="lazy"
-                      className="w-full h-full object-cover group-hover:scale-[1.03] transition-transform duration-500"
-                    />
-                  </div>
+                {/* No photo yet: a flat brand-coloured panel reads as a
+                    deliberate placeholder rather than a broken image, and
+                    the white text stays legible either way. */}
+                {item.image ? (
+                  <img
+                    src={item.image}
+                    alt=""
+                    loading="lazy"
+                    className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                  />
+                ) : (
+                  <div
+                    className="absolute inset-0"
+                    style={{
+                      background:
+                        'linear-gradient(135deg, rgb(var(--c-primary)), rgb(var(--c-gray-900)))',
+                    }}
+                  />
                 )}
-                <div className="p-4 sm:p-5">
-                  <h3 className="text-base font-semibold text-black">{item.title}</h3>
-                  {item.text && (
-                    <p className="mt-1.5 text-sm text-gray-500 leading-relaxed line-clamp-3">
-                      {item.text}
-                    </p>
+                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/15 to-transparent" />
+
+                <div className="relative h-full flex flex-col p-5">
+                  {Icon && (
+                    <span className="w-11 h-11 rounded-full bg-white/95 flex items-center justify-center shadow-sm">
+                      <Icon size={20} className="text-accent" strokeWidth={1.75} />
+                    </span>
                   )}
+                  <div className="mt-auto">
+                    <h3 className="text-white text-lg sm:text-xl font-semibold leading-snug drop-shadow-sm">
+                      {item.title}
+                    </h3>
+                    {item.text && (
+                      <>
+                        <span className="block w-8 h-px bg-white/60 my-2.5" />
+                        <p className="text-white/85 text-sm leading-relaxed line-clamp-3">
+                          {item.text}
+                        </p>
+                      </>
+                    )}
+                  </div>
                 </div>
               </>
             )
             const cls =
-              'group block rounded-2xl border border-gray-200 overflow-hidden hover:border-gray-400 transition-colors'
+              'group relative block rounded-2xl overflow-hidden aspect-[4/3.4] hover:brightness-[1.03] transition-[filter]'
             return item.href ? (
               <SmartLink key={i} href={item.href} className={cls}>
                 {inner}
