@@ -1,5 +1,4 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
-import type { ReactNode } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import {
   motion,
@@ -7,11 +6,7 @@ import {
   useMotionValue,
   useReducedMotion,
 } from 'framer-motion'
-import {
-  ChevronLeft, ChevronRight, MapPin,
-  Shirt, Layers, LayoutGrid, Sofa, Waves, Zap,
-  Droplet, Droplets, Package, Sparkles, Palette, Home, Scissors, Umbrella,
-} from 'lucide-react'
+import { ChevronLeft, ChevronRight, MapPin } from 'lucide-react'
 import { api } from '../lib/api'
 import { useSite } from '../lib/site'
 import { resolveCta, mapEmbedUrl, mapLinkUrl } from '../lib/contact'
@@ -22,38 +17,9 @@ import ContactForm from './ContactForm'
 import ProductCard from './ProductCard'
 import ParallaxCategories from './ParallaxCategories'
 import ProductFilter from './ProductFilter'
+import CoverflowCards from './CoverflowCards'
 import { gridColsClass } from '../lib/grid'
-
-const SECTION = 'py-12 sm:py-16 px-4 sm:px-6'
-const INNER = 'max-w-6xl mx-auto'
-
-/**
- * Link fields in the block editor accept anything the owner types. An absolute
- * URL leaves the site and needs a real anchor; everything else is an in-app
- * route and has to go through the router, or it forces a full page reload.
- */
-function SmartLink({
-  href,
-  className,
-  children,
-}: {
-  href: string
-  className?: string
-  children: ReactNode
-}) {
-  if (/^(https?:)?\/\//i.test(href) || /^(mailto:|tel:)/i.test(href)) {
-    return (
-      <a href={href} target="_blank" rel="noopener noreferrer" className={className}>
-        {children}
-      </a>
-    )
-  }
-  return (
-    <Link to={href.startsWith('/') ? href : `/${href}`} className={className}>
-      {children}
-    </Link>
-  )
-}
+import { SECTION, INNER, SmartLink } from './blockShared'
 
 /** Where the hero button sits when it is not tucked under the headline. */
 const CTA_POSITIONS: Record<string, string> = {
@@ -1267,30 +1233,8 @@ function Intro({ data }: { data: Record<string, any> }) {
 }
 
 /* ----------------------------------------------------------------- cards -- */
-/** Kept intentionally small — a handful of shapes that read cleanly at 20px
-    inside a badge, covering the textile/apparel vocabulary this site's cards
-    actually use, rather than exposing the whole lucide set as raw text keys
-    admins would have to spell correctly. */
-const CARD_ICONS: Record<string, typeof Shirt> = {
-  shirt: Shirt,
-  layers: Layers,
-  weave: LayoutGrid,
-  sofa: Sofa,
-  waves: Waves,
-  zap: Zap,
-  droplet: Droplet,
-  droplets: Droplets,
-  package: Package,
-  sparkles: Sparkles,
-  palette: Palette,
-  home: Home,
-  scissors: Scissors,
-  umbrella: Umbrella,
-}
-
 function Cards({ data }: { data: Record<string, any> }) {
   const items: any[] = Array.isArray(data.items) ? data.items : []
-  const cols = gridColsClass(data.columns, '3')
   if (items.length === 0) return null
 
   return (
@@ -1306,69 +1250,12 @@ function Cards({ data }: { data: Record<string, any> }) {
             )}
           </div>
         )}
-
-        <div className={`grid ${cols} gap-4 sm:gap-5`}>
-          {items.map((item, i) => {
-            const Icon = CARD_ICONS[item.icon as string]
-            const inner = (
-              <>
-                {/* No photo yet: a flat brand-coloured panel reads as a
-                    deliberate placeholder rather than a broken image, and
-                    the white text stays legible either way. */}
-                {item.image ? (
-                  <img
-                    src={item.image}
-                    alt=""
-                    loading="lazy"
-                    className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                  />
-                ) : (
-                  <div
-                    className="absolute inset-0"
-                    style={{
-                      background:
-                        'linear-gradient(135deg, rgb(var(--c-primary)), rgb(var(--c-gray-900)))',
-                    }}
-                  />
-                )}
-                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/15 to-transparent" />
-
-                <div className="relative h-full flex flex-col p-5">
-                  {Icon && (
-                    <span className="w-11 h-11 rounded-full bg-white/95 flex items-center justify-center shadow-sm">
-                      <Icon size={20} className="text-accent" strokeWidth={1.75} />
-                    </span>
-                  )}
-                  <div className="mt-auto">
-                    <h3 className="text-white text-lg sm:text-xl font-semibold leading-snug drop-shadow-sm">
-                      {item.title}
-                    </h3>
-                    {item.text && (
-                      <>
-                        <span className="block w-8 h-px bg-white/60 my-2.5" />
-                        <p className="text-white/85 text-sm leading-relaxed line-clamp-3">
-                          {item.text}
-                        </p>
-                      </>
-                    )}
-                  </div>
-                </div>
-              </>
-            )
-            const cls =
-              'group relative block rounded-2xl overflow-hidden aspect-[4/3.4] hover:brightness-[1.03] transition-[filter]'
-            return item.href ? (
-              <SmartLink key={i} href={item.href} className={cls}>
-                {inner}
-              </SmartLink>
-            ) : (
-              <div key={i} className={cls}>
-                {inner}
-              </div>
-            )
-          })}
-        </div>
       </div>
+
+      {/* Full-bleed rather than boxed inside INNER: the coverflow's side
+          cards are meant to recede toward the page edges, which reads as
+          cramped if they're still capped at the 6xl content width. */}
+      <CoverflowCards items={items} />
     </section>
   )
 }

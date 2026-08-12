@@ -412,19 +412,11 @@ export const BLOCK_SCHEMAS: Record<BlockType, BlockSchema> = {
     defaults: { eyebrow: '', title: '', html: '', image: '', imageSide: 'left', figures: [], buttons: [] },
   },
   cards: {
-    label: 'Application cards',
-    description: 'Image cards for the markets or applications you serve.',
+    label: 'Application cards (carousel)',
+    description: 'A drag/click-through coverflow of the markets or applications you serve.',
     fields: [
       { key: 'title', label: 'Section heading', type: 'text' },
       { key: 'subtitle', label: 'Section subheading', type: 'textarea' },
-      {
-        key: 'columns', label: 'Columns on desktop', type: 'select',
-        options: [
-          { value: '2', label: '2 per row' },
-          { value: '3', label: '3 per row' },
-          { value: '4', label: '4 per row' },
-        ],
-      },
       {
         key: 'items', label: 'Cards', type: 'list',
         itemFields: [
@@ -456,7 +448,7 @@ export const BLOCK_SCHEMAS: Record<BlockType, BlockSchema> = {
         ],
       },
     ],
-    defaults: { title: '', subtitle: '', columns: '3', items: [] },
+    defaults: { title: '', subtitle: '', items: [] },
   },
 }
 
