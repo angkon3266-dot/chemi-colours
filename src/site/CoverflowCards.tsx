@@ -256,6 +256,7 @@ export default function CoverflowCards({ items }: { items: CoverflowItem[] }) {
                       src={item.image}
                       alt=""
                       draggable={false}
+                      loading="lazy"
                       className="absolute inset-0 h-full w-full select-none object-cover"
                     />
                   ) : (
