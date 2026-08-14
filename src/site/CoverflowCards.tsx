@@ -125,7 +125,29 @@ export default function CoverflowCards({ items }: { items: CoverflowItem[] }) {
 
   const nudge = useCallback((by: number) => settle(Math.round(targetRef.current) + by), [settle])
 
+  /** Once someone takes the wheel, the carousel never grabs it back — an
+      auto-advance firing right after a deliberate drag reads as fighting
+      the visitor, not helping them. */
+  const [engaged, setEngaged] = useState(false)
+  const engage = useCallback(() => setEngaged(true), [])
+
+  // Idle drift: one card every few seconds until the first interaction, so
+  // the ring reads as browsable rather than a static image. Skipped for
+  // reduced-motion users, and ticks are dropped while the tab is hidden —
+  // the rAF-driven settle is suspended there, so queued advances would
+  // pile up and spin the ring on return.
+  useEffect(() => {
+    if (engaged || count < 2) return
+    if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return
+    const t = window.setInterval(() => {
+      if (document.hidden) return
+      settle(Math.round(targetRef.current) + 1)
+    }, 4500)
+    return () => window.clearInterval(t)
+  }, [engaged, count, settle])
+
   const onPointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
+    engage()
     if (rafRef.current !== null) {
       cancelAnimationFrame(rafRef.current)
       rafRef.current = null
@@ -222,9 +244,11 @@ export default function CoverflowCards({ items }: { items: CoverflowItem[] }) {
           onKeyDown={(event) => {
             if (event.key === 'ArrowLeft') {
               event.preventDefault()
+              engage()
               nudge(-1)
             } else if (event.key === 'ArrowRight') {
               event.preventDefault()
+              engage()
               nudge(1)
             }
           }}
@@ -296,7 +320,10 @@ export default function CoverflowCards({ items }: { items: CoverflowItem[] }) {
             <button
               type="button"
               aria-label="Previous"
-              onClick={() => nudge(-1)}
+              onClick={() => {
+                engage()
+                nudge(-1)
+              }}
               className="absolute left-1 sm:left-3 top-1/2 z-[200] -translate-y-1/2 w-9 h-9 rounded-full bg-white/90 text-black flex items-center justify-center hover:bg-white transition-colors shadow"
             >
               <ChevronLeft size={17} />
@@ -304,7 +331,10 @@ export default function CoverflowCards({ items }: { items: CoverflowItem[] }) {
             <button
               type="button"
               aria-label="Next"
-              onClick={() => nudge(1)}
+              onClick={() => {
+                engage()
+                nudge(1)
+              }}
               className="absolute right-1 sm:right-3 top-1/2 z-[200] -translate-y-1/2 w-9 h-9 rounded-full bg-white/90 text-black flex items-center justify-center hover:bg-white transition-colors shadow"
             >
               <ChevronRight size={17} />
@@ -319,7 +349,10 @@ export default function CoverflowCards({ items }: { items: CoverflowItem[] }) {
             <button
               key={index}
               type="button"
-              onClick={() => goTo(index)}
+              onClick={() => {
+                engage()
+                goTo(index)
+              }}
               aria-label={`Go to ${index + 1}`}
               aria-current={index === selected}
               className={`h-1.5 rounded-full transition-all ${
